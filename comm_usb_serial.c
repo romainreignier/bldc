@@ -276,14 +276,39 @@ static void usb_event(USBDriver *usbp, usbevent_t event) {
 		chSysUnlockFromISR();
 		configured_cnt++;
 		return;
+	case USB_EVENT_UNCONFIGURED:
+	/* Falls into.*/
 	case USB_EVENT_SUSPEND:
+		chSysLockFromISR();
+
+		/* Disconnection event on suspend.*/
+		sduSuspendHookI(&SDU1);
+
+		chSysUnlockFromISR();
 		return;
 	case USB_EVENT_WAKEUP:
+		chSysLockFromISR();
+
+		/* Connection event on wakeup.*/
+		sduWakeupHookI(&SDU1);
+
+		chSysUnlockFromISR();
 		return;
 	case USB_EVENT_STALLED:
 		return;
 	}
 	return;
+}
+
+/*
+ * Handles the USB driver global events.
+ */
+static void sof_handler(USBDriver *usbp) {
+	(void)usbp;
+
+	osalSysLockFromISR();
+	sduSOFHookI(&SDU1);
+	osalSysUnlockFromISR();
 }
 
 /*
@@ -293,7 +318,7 @@ static const USBConfig usbcfg = {
 		usb_event,
 		get_descriptor,
 		sduRequestsHook,
-		NULL
+		sof_handler
 };
 
 /*
