@@ -103,7 +103,7 @@ void terminal_process_string(char *str) {
 		n = chHeapStatus(NULL, &size, &largest);
 		commands_printf("core free memory : %u bytes", chCoreGetStatusX());
 		commands_printf("heap fragments   : %u", n);
-		commands_printf("heap free total  : %u bytes\n", size);
+		commands_printf("heap free total  : %u bytes", size);
 		commands_printf("heap free largest: %u bytes\n", largest);
 	} else if (strcmp(argv[0], "threads") == 0) {
 		thread_t *tp;
