@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -14,8 +14,12 @@
     limitations under the License.
 */
 
-#ifndef _BOARD_H_
-#define _BOARD_H_
+#ifndef BOARD_H
+#define BOARD_H
+
+/*===========================================================================*/
+/* Driver constants.                                                         */
+/*===========================================================================*/
 
 /*
  * Setup for STMicroelectronics STM32F4-Discovery board.
@@ -26,7 +30,6 @@
  */
 #define BOARD_ST_STM32F4_DISCOVERY
 #define BOARD_NAME                  "STMicroelectronics STM32F4-Discovery"
-
 
 /*
  * Board oscillators-related settings.
@@ -1146,6 +1149,9 @@
                                      PIN_AFIO_AF(GPIOI_PIN14, 0) |          \
                                      PIN_AFIO_AF(GPIOI_PIN15, 0))
 
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
 
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
@@ -1157,4 +1163,4 @@ extern "C" {
 #endif
 #endif /* _FROM_ASM_ */
 
-#endif /* _BOARD_H_ */
+#endif /* BOARD_H */

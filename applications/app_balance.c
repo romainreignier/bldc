@@ -129,7 +129,7 @@ float app_balance_get_roll_angle(void) {
 	return roll_angle;
 }
 uint32_t app_balance_get_diff_time(void) {
-	return ST2US(diff_time);
+	return TIME_I2US(diff_time);
 }
 float app_balance_get_motor_current(void) {
 	return motor_current;

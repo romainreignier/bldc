@@ -142,17 +142,17 @@ static THD_FUNCTION(uart_thread, arg) {
 	uartStart(&HW_UART_DEV, &uart_cfg);
 	palSetPadMode(HW_UART_TX_PORT, HW_UART_TX_PIN, PAL_MODE_ALTERNATE(HW_UART_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 	palSetPadMode(HW_UART_RX_PORT, HW_UART_RX_PIN, PAL_MODE_ALTERNATE(HW_UART_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 
 	systime_t time = chVTGetSystemTime();
 
 	is_running = true;
 
 	for(;;) {
-		time += MS2ST(1);
+		time += TIME_MS2I(1);
 
 		if (stop_now) {
 			is_running = false;

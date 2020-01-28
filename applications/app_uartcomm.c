@@ -113,10 +113,10 @@ void app_uartcomm_start(void) {
 	sdStart(&HW_UART_DEV, &uart_cfg);
 	palSetPadMode(HW_UART_TX_PORT, HW_UART_TX_PIN, PAL_MODE_ALTERNATE(HW_UART_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 	palSetPadMode(HW_UART_RX_PORT, HW_UART_RX_PIN, PAL_MODE_ALTERNATE(HW_UART_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 
 	uart_is_running = true;
 }
@@ -139,10 +139,10 @@ void app_uartcomm_start_permanent(void) {
 
 	palSetPadMode(HW_UART_P_TX_PORT, HW_UART_P_TX_PIN, PAL_MODE_ALTERNATE(HW_UART_P_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 	palSetPadMode(HW_UART_P_RX_PORT, HW_UART_P_RX_PIN, PAL_MODE_ALTERNATE(HW_UART_P_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST |
-			PAL_STM32_PUDR_PULLUP);
+			PAL_STM32_PUPDR_PULLUP);
 
 	uart_p_is_running = true;
 #endif
@@ -197,10 +197,10 @@ void app_uartcomm_configure(uint32_t baudrate, bool permanent_enabled) {
 	if (permanent_enabled) {
 		palSetPadMode(HW_UART_P_TX_PORT, HW_UART_P_TX_PIN, PAL_MODE_ALTERNATE(HW_UART_P_GPIO_AF) |
 				PAL_STM32_OSPEED_HIGHEST |
-				PAL_STM32_PUDR_PULLUP);
+				PAL_STM32_PUPDR_PULLUP);
 		palSetPadMode(HW_UART_P_RX_PORT, HW_UART_P_RX_PIN, PAL_MODE_ALTERNATE(HW_UART_P_GPIO_AF) |
 				PAL_STM32_OSPEED_HIGHEST |
-				PAL_STM32_PUDR_PULLUP);
+				PAL_STM32_PUPDR_PULLUP);
 	} else {
 		palSetPadMode(HW_UART_P_TX_PORT, HW_UART_P_TX_PIN, PAL_MODE_INPUT);
 		palSetPadMode(HW_UART_P_RX_PORT, HW_UART_P_RX_PIN, PAL_MODE_INPUT);
@@ -224,7 +224,7 @@ static THD_FUNCTION(packet_process_thread, arg) {
 #endif
 
 	for(;;) {
-		chEvtWaitAnyTimeout(ALL_EVENTS, ST2MS(10));
+		chEvtWaitAnyTimeout(ALL_EVENTS, TIME_I2MS(10));
 
 		bool rx = true;
 		while (rx) {
