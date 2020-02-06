@@ -20,7 +20,7 @@
 #include "flash_helper.h"
 #include "ch.h"
 #include "hal.h"
-#include "stm32f4xx_conf.h"
+//#include "stm32f4xx_conf.h"
 #include "utils.h"
 #include "mc_interface.h"
 #include "timeout.h"
@@ -252,7 +252,8 @@ uint32_t flash_helper_verify_flash_memory(void) {
 	// Look for a flag indicating that the CRC was previously computed.
 	// If it is blank (0xFFFFFFFF), calculate and store the CRC.
 	if(APP_CRC_WAS_CALCULATED_FLAG_ADDRESS[0] == APP_CRC_WAS_CALCULATED_FLAG) {
-		RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, ENABLE);
+		//RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, ENABLE);
+		rccEnableCRC(false);
 		crc32_reset();
 
 		// compute vector table (sector 0)
@@ -263,7 +264,8 @@ uint32_t flash_helper_verify_flash_memory(void) {
 		// compute application code
 		crc = crc32(APP_START_ADDRESS, (APP_SIZE) / 4);
 
-		RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, DISABLE);
+		//RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, DISABLE);
+		rccDisableCRC();
 
 		// A CRC over the full image should return zero.
 		return (crc == 0) ? FAULT_CODE_NONE : FAULT_CODE_FLASH_CORRUPTION;

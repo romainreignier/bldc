@@ -19,7 +19,7 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "stm32f4xx_conf.h"
+//#include "stm32f4xx_conf.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -82,7 +82,8 @@ static THD_FUNCTION(flash_integrity_check_thread, arg) {
 	(void)arg;
 
 	chRegSetThreadName("Flash check");
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, ENABLE);
+	// RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, ENABLE);
+	rccEnableCRC(false);
 
 	for(;;) {
 		if (flash_helper_verify_flash_memory_chunk() == FAULT_CODE_FLASH_CORRUPTION) {
