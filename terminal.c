@@ -36,6 +36,7 @@
 #include "app.h"
 #include "comm_usb.h"
 #include "comm_usb_serial.h"
+#include "timer.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -731,6 +732,8 @@ void terminal_process_string(char *str) {
 		commands_printf("Done!\n");
 	} else if (strcmp(argv[0], "uptime") == 0) {
 		commands_printf("Uptime: %.2f s\n", (double)chVTGetSystemTimeX() / (double)CH_CFG_ST_FREQUENCY);
+	} else if (strcmp(argv[0], "timer5") == 0) {
+		commands_printf("Timer5: %u ticks\n", timer_time_now);
 	}
 
 	// The help command
@@ -854,6 +857,9 @@ void terminal_process_string(char *str) {
 
 		commands_printf("uptime");
 		commands_printf("  Prints how many seconds have passed since boot.");
+
+		commands_printf("timer5");
+		commands_printf("  Prints current Timer 5 value.");
 
 		for (int i = 0;i < callback_write;i++) {
 			if (callbacks[i].cbf == 0) {
