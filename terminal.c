@@ -733,7 +733,7 @@ void terminal_process_string(char *str) {
 	} else if (strcmp(argv[0], "uptime") == 0) {
 		commands_printf("Uptime: %.2f s\n", (double)chVTGetSystemTimeX() / (double)CH_CFG_ST_FREQUENCY);
 	} else if (strcmp(argv[0], "timer5") == 0) {
-		commands_printf("Timer5: %u ticks\n", timer_time_now);
+		commands_printf("Timer5: %u ticks\n", timer_time_now());
 	}
 
 	// The help command
