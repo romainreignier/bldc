@@ -116,6 +116,14 @@ static QEIConfig qeicfg = {
   NULL
 };
 
+// GPT4 configuration.
+static const GPTConfig gpt4cfg = {
+  SYSTEM_CORE_CLOCK / 2, // Time frequency
+  encoder_tim_isr, // Callback
+  0, // CR2 register
+  0 // DIER register
+};
+
 static THD_FUNCTION(ts5700n8501_thread, arg);
 static THD_WORKING_AREA(ts5700n8501_thread_wa, 512);
 static volatile bool ts5700n8501_stop_now = true;
@@ -201,13 +209,20 @@ void encoder_ts57n8501_reset_multiturn(void) {
 }
 
 void encoder_deinit(void) {
-	nvicDisableVector(HW_ENC_EXTI_CH);
-	nvicDisableVector(HW_ENC_TIM_ISR_CH);
+	//nvicDisableVector(HW_ENC_EXTI_CH);
+	//nvicDisableVector(HW_ENC_TIM_ISR_CH);
+
+	palDisablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
 
 	TIM_DeInit(HW_ENC_TIM);
 	if(QEID4.state == QEI_ACTIVE) {
 		qeiDisable(&QEID4);
 		qeiStop(&QEID4);
+	}
+
+	if(GPTD4.state == GPT_CONTINUOUS) { 
+		gptStop(&GPTD4);
+		gptStopTimer(&GPTD4);
 	}
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT_PULLUP);
@@ -276,14 +291,28 @@ void encoder_init_abi(uint32_t counts) {
 	// Interrupt on index pulse
 
 	// Connect EXTI Line to pin
-	SYSCFG_EXTILineConfig(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
+	//SYSCFG_EXTILineConfig(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
 
 	// Configure EXTI Line
-	EXTI_InitStructure.EXTI_Line = HW_ENC_EXTI_LINE;
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&EXTI_InitStructure);
+	//EXTI_InitStructure.EXTI_Line = HW_ENC_EXTI_LINE;
+	//EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+	//EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+	//EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+	//EXTI_Init(&EXTI_InitStructure);
+
+	palEnablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
+	palSetPadCallback(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC, encoder_reset, NULL);
+
+/*
+	chSysLockFromISR();
+	if (palReadLine(PORTAB_LINE_BUTTON) == PORTAB_BUTTON_PRESSED) {
+		chEvtBroadcastI(&button_pressed_event);
+	}
+	else {
+		chEvtBroadcastI(&button_released_event);
+	}
+	chSysUnlockFromISR();
+*/
 
 	// Enable and set EXTI Line Interrupt to the highest priority
 	nvicEnableVector(HW_ENC_EXTI_CH, 0);
@@ -305,23 +334,26 @@ void encoder_init_as5047p_spi(void) {
 #endif
 
 	// Enable timer clock
-	HW_ENC_TIM_CLK_EN();
+	//HW_ENC_TIM_CLK_EN();
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	//TIM_TimeBaseStructure.TIM_Prescaler = 0;
+	//TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
+	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+	//TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
 
 	// Enable overflow interrupt
-	TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	//TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
 
 	// Enable timer
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	//TIM_Cmd(HW_ENC_TIM, ENABLE);
 
-	nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
+	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
+
+	gptStart(&GPTD4, &gpt4cfg);
+	gptStartContinuous(&GPTD4, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
 
 	mode = ENCODER_MODE_AS5047P_SPI;
 	index_found = true;
@@ -530,7 +562,8 @@ void encoder_reset(void) {
 				}
 			}
 		} else {
-			HW_ENC_TIM->CNT = 0;
+			//HW_ENC_TIM->CNT = 0;
+			qeiSetCount(&QEID4, 0);
 			index_found = true;
 			bad_pulses = 0;
 		}
