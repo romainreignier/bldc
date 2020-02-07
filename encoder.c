@@ -20,7 +20,6 @@
 #include "encoder.h"
 #include "ch.h"
 #include "hal.h"
-#include "stm32f4xx_conf.h"
 #include "hw.h"
 #include "mc_interface.h"
 #include "utils.h"
@@ -104,6 +103,17 @@ static SerialConfig TS5700N8501_uart_cfg = {
 		0,
 		USART_CR2_LINEN,
 		0
+};
+
+static QEIConfig qeicfg = {
+  QEI_MODE_QUADRATURE,
+  QEI_BOTH_EDGES,
+  QEI_DIRINV_FALSE,
+  QEI_OVERFLOW_WRAP,
+  0, // min
+  0, // max TODO use it to set ARR?
+  NULL,
+  NULL
 };
 
 static THD_FUNCTION(ts5700n8501_thread, arg);
@@ -195,6 +205,10 @@ void encoder_deinit(void) {
 	nvicDisableVector(HW_ENC_TIM_ISR_CH);
 
 	TIM_DeInit(HW_ENC_TIM);
+	if(QEID4.state == QEI_ACTIVE) {
+		qeiDisable(&QEID4);
+		qeiStop(&QEID4);
+	}
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT_PULLUP);
 	palSetPadMode(SPI_SW_SCK_GPIO, SPI_SW_SCK_PIN, PAL_MODE_INPUT_PULLUP);
@@ -236,21 +250,28 @@ void encoder_init_abi(uint32_t counts) {
 //	palSetPadMode(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3, PAL_MODE_ALTERNATE(HW_ENC_TIM_AF));
 
 	// Enable timer clock
-	HW_ENC_TIM_CLK_EN();
+	//HW_ENC_TIM_CLK_EN();
 
 	// Enable SYSCFG clock
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
-	TIM_EncoderInterfaceConfig (HW_ENC_TIM, TIM_EncoderMode_TI12,
-			TIM_ICPolarity_Rising,
-			TIM_ICPolarity_Rising);
-	TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+	//TIM_EncoderInterfaceConfig (HW_ENC_TIM, TIM_EncoderMode_TI12,
+	//		TIM_ICPolarity_Rising,
+	//		TIM_ICPolarity_Rising);
+	// TODO ChibiOS-Contrib does not provides the ability to set ARR
+	//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+	QEID4.tim->ARR = enc_counts - 1;
 
 	// Filter
-	HW_ENC_TIM->CCMR1 |= 6 << 12 | 6 << 4;
-	HW_ENC_TIM->CCMR2 |= 6 << 4;
+	//HW_ENC_TIM->CCMR1 |= 6 << 12 | 6 << 4;
+	//HW_ENC_TIM->CCMR2 |= 6 << 4;
+	QEID4.tim->CCMR1 |= 6 << 12 | 6 << 4;
+	QEID4.tim->CCMR2 |= 6 << 4;
 
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	//TIM_Cmd(HW_ENC_TIM, ENABLE);
+	// TODO define QEID4 as HW_ENC_TIM
+	qeiStart(&QEID4, &qeicfg);
+	qeiEnable(&QEID4);
 
 	// Interrupt on index pulse
 
@@ -411,7 +432,8 @@ float encoder_read_deg(void) {
 
 	switch (mode) {
 	case ENCODER_MODE_ABI:
-		angle = ((float)HW_ENC_TIM->CNT * 360.0) / (float)enc_counts;
+		//angle = ((float)HW_ENC_TIM->CNT * 360.0) / (float)enc_counts;
+		angle = ((float)qeiGetCount(&QEID4) * 360.0) / (float)enc_counts;
 		break;
 
 	case ENCODER_MODE_AS5047P_SPI:
@@ -497,7 +519,8 @@ void encoder_reset(void) {
 		if (index_found) {
 			// Some plausibility filtering.
 			if (cnt > (enc_counts - lim) || cnt < lim) {
-				HW_ENC_TIM->CNT = 0;
+				//HW_ENC_TIM->CNT = 0;
+				qeiSetCount(&QEID4, 0);
 				bad_pulses = 0;
 			} else {
 				bad_pulses++;
@@ -618,7 +641,9 @@ void encoder_tim_isr(void) {
 void encoder_set_counts(uint32_t counts) {
 	if (counts != enc_counts) {
 		enc_counts = counts;
-		TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+		//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+		// TODO with ChibiOS
+		QEID4.tim->ARR = enc_counts - 1;
 		index_found = false;
 	}
 }
@@ -822,4 +847,3 @@ static THD_FUNCTION(ts5700n8501_thread, arg) {
 		}
 	}
 }
-
