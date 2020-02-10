@@ -73,6 +73,14 @@ typedef enum {
 	ENCODER_MODE_TS5700N8501
 } encoder_mode;
 
+// Private functions
+static void encoder_tim_isr(GPTDriver *gptp);
+static void spi_transfer(uint16_t *in_buf, const uint16_t *out_buf, int length);
+static void spi_begin(void);
+static void spi_end(void);
+static void spi_delay(void);
+static void TS5700N8501_send_byte(uint8_t b);
+
 // Private variables
 static bool index_found = false;
 static uint32_t enc_counts = 10000;
@@ -116,8 +124,8 @@ static QEIConfig qeicfg = {
   NULL
 };
 
-// GPT4 configuration.
-static const GPTConfig gpt4cfg = {
+// GPT6 configuration.
+static const GPTConfig gpt6cfg = {
   SYSTEM_CORE_CLOCK / 2, // Time frequency
   encoder_tim_isr, // Callback
   0, // CR2 register
@@ -131,13 +139,6 @@ static volatile bool ts5700n8501_is_running = false;
 static volatile uint8_t ts5700n8501_raw_status[8] = {0};
 static volatile bool ts5700n8501_reset_errors = false;
 static volatile bool ts5700n8501_reset_multiturn = false;
-
-// Private functions
-static void spi_transfer(uint16_t *in_buf, const uint16_t *out_buf, int length);
-static void spi_begin(void);
-static void spi_end(void);
-static void spi_delay(void);
-static void TS5700N8501_send_byte(uint8_t b);
 
 uint32_t encoder_spi_get_error_cnt(void) {
 	return spi_error_cnt;
@@ -214,15 +215,15 @@ void encoder_deinit(void) {
 
 	palDisablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
 
-	TIM_DeInit(HW_ENC_TIM);
+	//TIM_DeInit(HW_ENC_TIM);
 	if(QEID4.state == QEI_ACTIVE) {
 		qeiDisable(&QEID4);
 		qeiStop(&QEID4);
 	}
 
-	if(GPTD4.state == GPT_CONTINUOUS) { 
-		gptStop(&GPTD4);
-		gptStopTimer(&GPTD4);
+	if(GPTD6.state == GPT_CONTINUOUS) {
+		gptStop(&GPTD6);
+		gptStopTimer(&GPTD6);
 	}
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT_PULLUP);
@@ -300,7 +301,7 @@ void encoder_init_abi(uint32_t counts) {
 	//EXTI_InitStructure.EXTI_LineCmd = ENABLE;
 	//EXTI_Init(&EXTI_InitStructure);
 
-	palEnablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
+	palEnablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC, PAL_EVENT_MODE_RISING_EDGE);
 	palSetPadCallback(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC, encoder_reset, NULL);
 
 /*
@@ -352,8 +353,9 @@ void encoder_init_as5047p_spi(void) {
 
 	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
 
-	gptStart(&GPTD4, &gpt4cfg);
-	gptStartContinuous(&GPTD4, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
+	gptStart(&GPTD6, &gpt6cfg);
+	// TODO compute frequency and period
+	gptStartContinuous(&GPTD6, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
 
 	mode = ENCODER_MODE_AS5047P_SPI;
 	index_found = true;
@@ -394,20 +396,23 @@ void encoder_init_ad2s1205_spi(void) {
 	HW_ENC_TIM_CLK_EN();
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	//TIM_TimeBaseStructure.TIM_Prescaler = 0;
+	//TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
+	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+	//TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
 
-	// Enable overflow interrupt
-	TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	//// Enable overflow interrupt
+	//TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
 
-	// Enable timer
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	//// Enable timer
+	//TIM_Cmd(HW_ENC_TIM, ENABLE);
 
-	nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
+	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
+	gptStart(&GPTD6, &gpt6cfg);
+	// TODO compute frequency and period
+	gptStartContinuous(&GPTD6, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
 
 	mode = RESOLVER_MODE_AD2S1205;
 	index_found = true;
@@ -582,7 +587,7 @@ bool spi_check_parity(uint16_t x) {
 /**
  * Timer interrupt
  */
-void encoder_tim_isr(void) {
+static void encoder_tim_isr(GPTDriver *gptp) {
 	uint16_t pos;
 
 	if(mode == ENCODER_MODE_AS5047P_SPI) {
@@ -675,6 +680,7 @@ void encoder_set_counts(uint32_t counts) {
 	if (counts != enc_counts) {
 		enc_counts = counts;
 		//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+
 		// TODO with ChibiOS
 		QEID4.tim->ARR = enc_counts - 1;
 		index_found = false;

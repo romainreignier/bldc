@@ -59,10 +59,12 @@
  * HW resources used:
  *
  * TIM1: mcpwm
- * TIM5: timer
- * TIM8: mcpwm
+ * TIM2: ChibiOS
  * TIM3: servo_dec/Encoder (HW_R2)/servo_simple
  * TIM4: WS2811/WS2812 LEDs/Encoder (other HW)
+ * TIM5: timer
+ * TIM6: SPI Encoder
+ * TIM8: mcpwm
  *
  * DMA/stream	Device		Function
  * 1, 2			I2C1		Nunchuk, temp on rev 4.5
