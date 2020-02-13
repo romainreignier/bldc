@@ -25,6 +25,7 @@
 #include "stdio.h"
 #include "commands.h"
 #include "encoder.h"
+#include "stm32f4xx_conf.h"
 
 typedef struct{
 	//constant variables

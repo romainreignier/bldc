@@ -41,6 +41,7 @@
 #include "confgenerator.h"
 #include "imu.h"
 #include "shutdown.h"
+#include "stm32f4xx_conf.h"
 #if HAS_BLACKMAGIC
 #include "bm_if.h"
 #endif

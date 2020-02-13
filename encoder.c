@@ -255,7 +255,7 @@ void encoder_deinit(void) {
 }
 
 void encoder_init_abi(uint32_t counts) {
-	EXTI_InitTypeDef   EXTI_InitStructure;
+	//EXTI_InitTypeDef   EXTI_InitStructure;
 
 	// Initialize variables
 	index_found = false;
@@ -322,7 +322,7 @@ void encoder_init_abi(uint32_t counts) {
 }
 
 void encoder_init_as5047p_spi(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	//TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT);
 	palSetPadMode(SPI_SW_SCK_GPIO, SPI_SW_SCK_PIN, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
@@ -363,7 +363,7 @@ void encoder_init_as5047p_spi(void) {
 }
 
 void encoder_init_ad2s1205_spi(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	//TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 
 	resolver_loss_of_tracking_error_rate = 0.0;
 	resolver_degradation_of_signal_error_rate = 0.0;
@@ -393,7 +393,7 @@ void encoder_init_ad2s1205_spi(void) {
 
 
 	// Enable timer clock
-	HW_ENC_TIM_CLK_EN();
+	//HW_ENC_TIM_CLK_EN();
 
 	// Time Base configuration
 	//TIM_TimeBaseStructure.TIM_Prescaler = 0;
@@ -541,7 +541,9 @@ float encoder_read_deg_multiturn(void) {
 /**
  * Reset the encoder counter. Should be called from the index interrupt.
  */
-void encoder_reset(void) {
+void encoder_reset(void* arg) {
+	(void)arg;
+
 	// Only reset if the pin is still high to avoid too short pulses, which
 	// most likely are noise.
 	__NOP();
@@ -588,6 +590,8 @@ bool spi_check_parity(uint16_t x) {
  * Timer interrupt
  */
 static void encoder_tim_isr(GPTDriver *gptp) {
+	(void)gptp;
+
 	uint16_t pos;
 
 	if(mode == ENCODER_MODE_AS5047P_SPI) {
@@ -603,7 +607,7 @@ static void encoder_tim_isr(GPTDriver *gptp) {
 		} else {
 			++spi_error_cnt;
 			UTILS_LP_FAST(spi_error_rate, 1.0, 1./AS5047_SAMPLE_RATE_HZ);
-		}		
+		}
 	}
 
 	if(mode == RESOLVER_MODE_AD2S1205) {
@@ -681,7 +685,7 @@ void encoder_set_counts(uint32_t counts) {
 		enc_counts = counts;
 		//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
 
-		// TODO with ChibiOS
+		// TODO with ChibiOS but a new method needs to be added
 		QEID4.tim->ARR = enc_counts - 1;
 		index_found = false;
 	}

@@ -33,7 +33,7 @@ void encoder_init_ts5700n8501(void);
 bool encoder_is_configured(void);
 float encoder_read_deg(void);
 float encoder_read_deg_multiturn(void);
-void encoder_reset(void);
+void encoder_reset(void* arg);
 void encoder_set_counts(uint32_t counts);
 bool encoder_index_found(void);
 

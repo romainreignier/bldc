@@ -21,7 +21,7 @@
 #define HW_H_
 
 #include "conf_general.h"
-#include "stm32f4xx_conf.h"
+//#include "stm32f4xx_conf.h"
 
 #include HW_HEADER
 
@@ -336,7 +336,7 @@
 #define HW_CANL_PIN				9
 #endif
 #ifndef HW_CAN_GPIO_AF
-#define HW_CAN_GPIO_AF			GPIO_AF_CAN1
+#define HW_CAN_GPIO_AF			9 // CAN
 #endif
 #ifndef HW_CAN_DEV
 #define HW_CAN_DEV				CAND1
