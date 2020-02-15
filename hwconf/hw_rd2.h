@@ -180,13 +180,9 @@
 #define HW_HALL_ENC_PIN3		8
 #define HW_ENC_DEV				QEID3
 #define HW_ENC_TIM_AF			GPIO_AF_TIM3
-#define HW_ENC_TIM_CLK_EN()		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE)
 #define HW_ENC_INDEX_PORT		GPIOC
 #define HW_ENC_INDEX_PIN		8
 #define HW_ENC_EXTI_CH			EXTI9_5_IRQn
-#define HW_ENC_EXTI_ISR_VEC		EXTI9_5_IRQHandler
-#define HW_ENC_TIM_ISR_CH		TIM3_IRQn
-#define HW_ENC_TIM_ISR_VEC		TIM3_IRQHandler
 
 // SPI pins
 #define HW_SPI_DEV				SPID1

@@ -126,10 +126,10 @@ static QEIConfig qeicfg = {
 
 // GPT6 configuration.
 static const GPTConfig gpt6cfg = {
-	SYSTEM_CORE_CLOCK / 2, // Time frequency
-	encoder_tim_isr, // Callback
-	0, // CR2 register
-	0 // DIER register
+	STM32_TIMCLK1,		// Timer frequency
+	encoder_tim_isr,	// Callback
+	0,					// CR2 register
+	0					// DIER register
 };
 
 static THD_FUNCTION(ts5700n8501_thread, arg);
@@ -211,18 +211,17 @@ void encoder_ts57n8501_reset_multiturn(void) {
 
 void encoder_deinit(void) {
 	nvicDisableVector(HW_ENC_EXTI_CH);
-	//nvicDisableVector(HW_ENC_TIM_ISR_CH);
 
 	palDisablePadEvent(HW_ENC_INDEX_PORT, HW_ENC_INDEX_PIN);
 
-	if(HW_ENC_DEV.state == QEI_ACTIVE) {
+	if(HW_ENC_DEV.state == QEI_READY || HW_ENC_DEV.state == QEI_ACTIVE) {
 		qeiDisable(&HW_ENC_DEV);
 		qeiStop(&HW_ENC_DEV);
 	}
 
-	if(GPTD6.state == GPT_CONTINUOUS) {
-		gptStop(&GPTD6);
+	if(GPTD6.state == GPT_READY || GPTD6.state == GPT_CONTINUOUS) {
 		gptStopTimer(&GPTD6);
+		gptStop(&GPTD6);
 	}
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT_PULLUP);
@@ -283,8 +282,6 @@ void encoder_init_abi(uint32_t counts) {
 }
 
 void encoder_init_as5047p_spi(void) {
-	//TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT);
 	palSetPadMode(SPI_SW_SCK_GPIO, SPI_SW_SCK_PIN, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
 	palSetPadMode(SPI_SW_CS_GPIO, SPI_SW_CS_PIN, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
@@ -295,28 +292,9 @@ void encoder_init_as5047p_spi(void) {
 	palSetPad(SPI_SW_MOSI_GPIO, SPI_SW_MOSI_PIN);
 #endif
 
-	// Enable timer clock
-	//HW_ENC_TIM_CLK_EN();
-
-	// Time Base configuration
-	//TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	//TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
-	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	//TIM_TimeBaseInit(HW_ENC_DEV, &TIM_TimeBaseStructure);
-
-	// Enable overflow interrupt
-	//TIM_ITConfig(HW_ENC_DEV, TIM_IT_Update, ENABLE);
-
 	// Enable timer
-	//TIM_Cmd(HW_ENC_DEV, ENABLE);
-
-	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
-
 	gptStart(&GPTD6, &gpt6cfg);
-	// TODO compute frequency and period
-	gptStartContinuous(&GPTD6, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
+	gptStartContinuous(&GPTD6, STM32_TIMCLK1 / AS5047_SAMPLE_RATE_HZ);
 
 	mode = ENCODER_MODE_AS5047P_SPI;
 	index_found = true;
@@ -324,8 +302,6 @@ void encoder_init_as5047p_spi(void) {
 }
 
 void encoder_init_ad2s1205_spi(void) {
-	//TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-
 	resolver_loss_of_tracking_error_rate = 0.0;
 	resolver_degradation_of_signal_error_rate = 0.0;
 	resolver_loss_of_signal_error_rate = 0.0;
@@ -352,28 +328,9 @@ void encoder_init_ad2s1205_spi(void) {
 	palSetPad(AD2S1205_RDVEL_GPIO, AD2S1205_RDVEL_PIN);		// Will always read position
 #endif
 
-
-	// Enable timer clock
-	//HW_ENC_TIM_CLK_EN();
-
-	// Time Base configuration
-	//TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	//TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
-	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	//TIM_TimeBaseInit(HW_ENC_DEV, &TIM_TimeBaseStructure);
-
-	//// Enable overflow interrupt
-	//TIM_ITConfig(HW_ENC_DEV, TIM_IT_Update, ENABLE);
-
-	//// Enable timer
-	//TIM_Cmd(HW_ENC_DEV, ENABLE);
-
-	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
+	// Enable timer
 	gptStart(&GPTD6, &gpt6cfg);
-	// TODO compute frequency and period
-	gptStartContinuous(&GPTD6, ((SYSTEM_CORE_CLOCK / 2 / AS5047_SAMPLE_RATE_HZ) - 1));
+	gptStartContinuous(&GPTD6, STM32_TIMCLK1 / AD2S1205_SAMPLE_RATE_HZ);
 
 	mode = RESOLVER_MODE_AD2S1205;
 	index_found = true;

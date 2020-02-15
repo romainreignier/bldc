@@ -149,13 +149,9 @@
 #define HW_HALL_ENC_PIN3		8
 #define HW_ENC_DEV				QEID4
 #define HW_ENC_TIM_AF			GPIO_AF_TIM4
-#define HW_ENC_TIM_CLK_EN()		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
 #define HW_ENC_INDEX_PORT		GPIOB
 #define HW_ENC_INDEX_PIN		8
 #define HW_ENC_EXTI_CH			EXTI9_5_IRQn
-#define HW_ENC_EXTI_ISR_VEC		EXTI9_5_IRQHandler
-#define HW_ENC_TIM_ISR_CH		TIM4_IRQn
-#define HW_ENC_TIM_ISR_VEC		TIM4_IRQHandler
 
 // NRF pins
 #define NRF_PORT_CSN			HW_ICU_GPIO
