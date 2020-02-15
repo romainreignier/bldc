@@ -86,6 +86,11 @@ ifeq ($(USE_FWLIB),)
   USE_FWLIB = yes
 endif
 
+# Enable this if you want to use the ST LL Driver.
+ifeq ($(USE_ST_LL_DRIVER),)
+  USE_ST_LL_DRIVER = yes
+endif
+
 #
 # Architecture or project specific options
 ##############################################################################
@@ -101,6 +106,7 @@ PROJECT = BLDC_4_ChibiOS
 CHIBIOS = ChibiOS
 CHIBIOS_CONTRIB = $(CHIBIOS)/../ChibiOS-Contrib
 ST_STD_LIB = stdperiph_stm32f4
+ST_LL_DRIVER = STM32F4xx_LL_Driver
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files
@@ -263,6 +269,12 @@ ifeq ($(USE_FWLIB),yes)
   CSRC += $(STM32SRC)
   INCDIR += $(STM32INC)
   USE_OPT += -DUSE_STDPERIPH_DRIVER
+endif
+
+ifeq ($(USE_ST_LL_DRIVER),yes)
+  include $(ST_LL_DRIVER)/STM32F4xx_LL_Driver.mk
+  CSRC += $(STM32_LL_SRC)
+  INCDIR += $(STM32_LL_INC)
 endif
 
 ##############################################################################
