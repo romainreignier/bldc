@@ -151,8 +151,13 @@
  */
 #define STM32_QEI_USE_TIM1                FALSE
 #define STM32_QEI_USE_TIM2                FALSE
+#ifdef HW_USE_SERVO_TIM4
+#define STM32_QEI_USE_TIM3                TRUE
+#define STM32_QEI_USE_TIM4                FALSE
+#else
 #define STM32_QEI_USE_TIM3                FALSE
 #define STM32_QEI_USE_TIM4                TRUE
+#endif
 #define STM32_QEI_TIM1_IRQ_PRIORITY         3
 #define STM32_QEI_TIM2_IRQ_PRIORITY         3
 #define STM32_QEI_TIM3_IRQ_PRIORITY         3

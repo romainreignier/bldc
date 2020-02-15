@@ -37,6 +37,7 @@
 #include "shutdown.h"
 #include "app.h"
 #include "utils.h"
+#include "stm32f4xx_conf.h"
 
 #include <math.h>
 #include <stdlib.h>

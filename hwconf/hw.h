@@ -22,6 +22,7 @@
 
 #include "conf_general.h"
 //#include "stm32f4xx_conf.h"
+#include "stm32f4_gpio_af.h"
 
 #include HW_HEADER
 

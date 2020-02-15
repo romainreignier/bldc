@@ -734,6 +734,8 @@ void terminal_process_string(char *str) {
 		commands_printf("Uptime: %.2f s\n", (double)chVTGetSystemTimeX() / (double)CH_CFG_ST_FREQUENCY);
 	} else if (strcmp(argv[0], "timer5") == 0) {
 		commands_printf("Timer5: %u ticks\n", timer_time_now());
+	} else if (strcmp(argv[0], "read_enc") == 0) {
+		commands_printf("angle: %.2f deg\n", (double)encoder_read_deg());
 	}
 
 	// The help command
@@ -860,6 +862,9 @@ void terminal_process_string(char *str) {
 
 		commands_printf("timer5");
 		commands_printf("  Prints current Timer 5 value.");
+
+		commands_printf("read_enc");
+		commands_printf("  Prints current encoder angle.");
 
 		for (int i = 0;i < callback_write;i++) {
 			if (callbacks[i].cbf == 0) {

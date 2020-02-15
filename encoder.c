@@ -107,29 +107,29 @@ static float sincos_signal_low_error_rate = 0.0;
 static float sincos_signal_above_max_error_rate = 0.0;
 
 static SerialConfig TS5700N8501_uart_cfg = {
-		2500000,
-		0,
-		USART_CR2_LINEN,
-		0
+	2500000,
+	0,
+	USART_CR2_LINEN,
+	0
 };
 
 static QEIConfig qeicfg = {
-  QEI_MODE_QUADRATURE,
-  QEI_BOTH_EDGES,
-  QEI_DIRINV_FALSE,
-  QEI_OVERFLOW_WRAP,
-  0, // min
-  0, // max TODO use it to set ARR?
-  NULL,
-  NULL
+	QEI_MODE_QUADRATURE,
+	QEI_BOTH_EDGES,
+	QEI_DIRINV_FALSE,
+	QEI_OVERFLOW_WRAP,
+	0, // min
+	0, // max
+	NULL,
+	NULL
 };
 
 // GPT6 configuration.
 static const GPTConfig gpt6cfg = {
-  SYSTEM_CORE_CLOCK / 2, // Time frequency
-  encoder_tim_isr, // Callback
-  0, // CR2 register
-  0 // DIER register
+	SYSTEM_CORE_CLOCK / 2, // Time frequency
+	encoder_tim_isr, // Callback
+	0, // CR2 register
+	0 // DIER register
 };
 
 static THD_FUNCTION(ts5700n8501_thread, arg);
@@ -210,15 +210,14 @@ void encoder_ts57n8501_reset_multiturn(void) {
 }
 
 void encoder_deinit(void) {
-	//nvicDisableVector(HW_ENC_EXTI_CH);
+	nvicDisableVector(HW_ENC_EXTI_CH);
 	//nvicDisableVector(HW_ENC_TIM_ISR_CH);
 
-	palDisablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
+	palDisablePadEvent(HW_ENC_INDEX_PORT, HW_ENC_INDEX_PIN);
 
-	//TIM_DeInit(HW_ENC_TIM);
-	if(QEID4.state == QEI_ACTIVE) {
-		qeiDisable(&QEID4);
-		qeiStop(&QEID4);
+	if(HW_ENC_DEV.state == QEI_ACTIVE) {
+		qeiDisable(&HW_ENC_DEV);
+		qeiStop(&HW_ENC_DEV);
 	}
 
 	if(GPTD6.state == GPT_CONTINUOUS) {
@@ -255,8 +254,6 @@ void encoder_deinit(void) {
 }
 
 void encoder_init_abi(uint32_t counts) {
-	//EXTI_InitTypeDef   EXTI_InitStructure;
-
 	// Initialize variables
 	index_found = false;
 	enc_counts = counts;
@@ -265,55 +262,19 @@ void encoder_init_abi(uint32_t counts) {
 	palSetPadMode(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2, PAL_MODE_ALTERNATE(HW_ENC_TIM_AF));
 //	palSetPadMode(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3, PAL_MODE_ALTERNATE(HW_ENC_TIM_AF));
 
-	// Enable timer clock
-	//HW_ENC_TIM_CLK_EN();
+	// Filter: sampling at freq/4 after 6 consecutive events
+	HW_ENC_DEV.tim->CCMR1 |= STM32_TIM_CCMR1_IC2F(6) | STM32_TIM_CCMR1_IC1F(6);
+	HW_ENC_DEV.tim->CCMR2 |= STM32_TIM_CCMR2_IC3F(6);
 
-	// Enable SYSCFG clock
-	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
-
-	//TIM_EncoderInterfaceConfig (HW_ENC_TIM, TIM_EncoderMode_TI12,
-	//		TIM_ICPolarity_Rising,
-	//		TIM_ICPolarity_Rising);
-	// TODO ChibiOS-Contrib does not provides the ability to set ARR
-	//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
-	QEID4.tim->ARR = enc_counts - 1;
-
-	// Filter
-	//HW_ENC_TIM->CCMR1 |= 6 << 12 | 6 << 4;
-	//HW_ENC_TIM->CCMR2 |= 6 << 4;
-	QEID4.tim->CCMR1 |= 6 << 12 | 6 << 4;
-	QEID4.tim->CCMR2 |= 6 << 4;
-
-	//TIM_Cmd(HW_ENC_TIM, ENABLE);
-	// TODO define QEID4 as HW_ENC_TIM
-	qeiStart(&QEID4, &qeicfg);
-	qeiEnable(&QEID4);
+	qeiStart(&HW_ENC_DEV, &qeicfg);
+	qeiEnable(&HW_ENC_DEV);
+	// ChibiOS-Contrib does not provides the ability to set ARR
+	// Set it after config because set to 0 in qeiEnable()
+	HW_ENC_DEV.tim->ARR = enc_counts - 1;
 
 	// Interrupt on index pulse
-
-	// Connect EXTI Line to pin
-	//SYSCFG_EXTILineConfig(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
-
-	// Configure EXTI Line
-	//EXTI_InitStructure.EXTI_Line = HW_ENC_EXTI_LINE;
-	//EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	//EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
-	//EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	//EXTI_Init(&EXTI_InitStructure);
-
-	palEnablePadEvent(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC, PAL_EVENT_MODE_RISING_EDGE);
-	palSetPadCallback(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC, encoder_reset, NULL);
-
-/*
-	chSysLockFromISR();
-	if (palReadLine(PORTAB_LINE_BUTTON) == PORTAB_BUTTON_PRESSED) {
-		chEvtBroadcastI(&button_pressed_event);
-	}
-	else {
-		chEvtBroadcastI(&button_released_event);
-	}
-	chSysUnlockFromISR();
-*/
+	palEnablePadEvent(HW_ENC_INDEX_PORT, HW_ENC_INDEX_PIN, PAL_EVENT_MODE_RISING_EDGE);
+	palSetPadCallback(HW_ENC_INDEX_PORT, HW_ENC_INDEX_PIN, encoder_reset, NULL);
 
 	// Enable and set EXTI Line Interrupt to the highest priority
 	nvicEnableVector(HW_ENC_EXTI_CH, 0);
@@ -343,13 +304,13 @@ void encoder_init_as5047p_spi(void) {
 	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
 	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	//TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	//TIM_TimeBaseInit(HW_ENC_DEV, &TIM_TimeBaseStructure);
 
 	// Enable overflow interrupt
-	//TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	//TIM_ITConfig(HW_ENC_DEV, TIM_IT_Update, ENABLE);
 
 	// Enable timer
-	//TIM_Cmd(HW_ENC_TIM, ENABLE);
+	//TIM_Cmd(HW_ENC_DEV, ENABLE);
 
 	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
 
@@ -401,13 +362,13 @@ void encoder_init_ad2s1205_spi(void) {
 	//TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
 	//TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	//TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	//TIM_TimeBaseInit(HW_ENC_DEV, &TIM_TimeBaseStructure);
 
 	//// Enable overflow interrupt
-	//TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	//TIM_ITConfig(HW_ENC_DEV, TIM_IT_Update, ENABLE);
 
 	//// Enable timer
-	//TIM_Cmd(HW_ENC_TIM, ENABLE);
+	//TIM_Cmd(HW_ENC_DEV, ENABLE);
 
 	//nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
 	gptStart(&GPTD6, &gpt6cfg);
@@ -469,8 +430,7 @@ float encoder_read_deg(void) {
 
 	switch (mode) {
 	case ENCODER_MODE_ABI:
-		//angle = ((float)HW_ENC_TIM->CNT * 360.0) / (float)enc_counts;
-		angle = ((float)qeiGetCount(&QEID4) * 360.0) / (float)enc_counts;
+		angle = ((float)qeiGetCount(&HW_ENC_DEV) * 360.0) / (float)enc_counts;
 		break;
 
 	case ENCODER_MODE_AS5047P_SPI:
@@ -551,15 +511,14 @@ void encoder_reset(void* arg) {
 	__NOP();
 	__NOP();
 	if (palReadPad(HW_HALL_ENC_GPIO3, HW_HALL_ENC_PIN3)) {
-		const unsigned int cnt = HW_ENC_TIM->CNT;
+		const unsigned int cnt = qeiGetCount(&HW_ENC_DEV);
 		static int bad_pulses = 0;
 		const unsigned int lim = enc_counts / 20;
 
 		if (index_found) {
 			// Some plausibility filtering.
 			if (cnt > (enc_counts - lim) || cnt < lim) {
-				//HW_ENC_TIM->CNT = 0;
-				qeiSetCount(&QEID4, 0);
+				qeiSetCount(&HW_ENC_DEV, 0);
 				bad_pulses = 0;
 			} else {
 				bad_pulses++;
@@ -569,8 +528,7 @@ void encoder_reset(void* arg) {
 				}
 			}
 		} else {
-			//HW_ENC_TIM->CNT = 0;
-			qeiSetCount(&QEID4, 0);
+			qeiSetCount(&HW_ENC_DEV, 0);
 			index_found = true;
 			bad_pulses = 0;
 		}
@@ -683,10 +641,7 @@ static void encoder_tim_isr(GPTDriver *gptp) {
 void encoder_set_counts(uint32_t counts) {
 	if (counts != enc_counts) {
 		enc_counts = counts;
-		//TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
-
-		// TODO with ChibiOS but a new method needs to be added
-		QEID4.tim->ARR = enc_counts - 1;
+		HW_ENC_DEV.tim->ARR = enc_counts - 1;
 		index_found = false;
 	}
 }
