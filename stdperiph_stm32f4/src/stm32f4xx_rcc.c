@@ -57,6 +57,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_rcc.h"
+#include "stm32_assert.h"
 
 #if !defined  (HSE_STARTUP_TIMEOUT) 
 #define HSE_STARTUP_TIMEOUT    ((uint16_t)0x05000)

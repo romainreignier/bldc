@@ -74,6 +74,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "misc.h"
+#include "stm32_assert.h"
 
 /** @addtogroup STM32F4xx_StdPeriph_Driver
   * @{

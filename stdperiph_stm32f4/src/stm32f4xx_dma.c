@@ -123,6 +123,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_dma.h"
 #include "stm32f4xx_rcc.h"
+#include "stm32_assert.h"
 
 /** @addtogroup STM32F4xx_StdPeriph_Driver
   * @{

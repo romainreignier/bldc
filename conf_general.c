@@ -31,6 +31,7 @@
 #include "comm_can.h"
 #include "app.h"
 #include "confgenerator.h"
+#include "stm32_assert.h"
 
 #include <string.h>
 #include <math.h>

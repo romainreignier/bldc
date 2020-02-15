@@ -66,6 +66,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_exti.h"
+#include "stm32_assert.h"
 
 /** @addtogroup STM32F4xx_StdPeriph_Driver
   * @{
