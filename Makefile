@@ -81,11 +81,6 @@ ifeq ($(USE_FPU_OPT),)
   USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16
 endif
 
-# Enable this if you really want to use the STM FWLib.
-ifeq ($(USE_FWLIB),)
-  USE_FWLIB = yes
-endif
-
 #
 # Architecture or project specific options
 ##############################################################################
@@ -99,7 +94,7 @@ PROJECT = BLDC_4_ChibiOS
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
-ST_STD_LIB = stdperiph_stm32f4
+ST_LL_DRIVER = st_drivers/STM32F4xx_LL_Driver
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files
@@ -119,6 +114,8 @@ include libcanard/canard.mk
 include imu/imu.mk
 include compression/compression.mk
 include blackmagic/blackmagic.mk
+include st_drivers/STM32F4xx_LL_Driver/stm32ll.mk
+include Legacy/stlegacy.mk
 
 # Define linker script file here
 LDSCRIPT= ld_eeprom_emu.ld
@@ -166,7 +163,9 @@ CSRC = $(ALLCSRC) \
        $(CANARDSRC) \
        $(IMUSRC) \
        $(COMPRESSIONSRC) \
-       $(BLACKMAGICSRC)
+       $(BLACKMAGICSRC) \
+       $(STM32LLSRC) \
+       $(STLEGACYSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -189,7 +188,9 @@ INCDIR = $(ALLINC) \
          $(CANARDINC) \
          $(IMUINC) \
          $(COMPRESSIONINC) \
-         $(BLACKMAGICINC)
+         $(BLACKMAGICINC) \
+         $(STM32LLINC) \
+         $(STLEGACYINC)
 
 #
 # Project, sources and paths
@@ -239,7 +240,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+UDEFS = -DUSE_FULL_LL_DRIVER
 
 # Define ASM defines here
 UADEFS =
@@ -256,13 +257,6 @@ ULIBS = -lm
 #
 # End of user defines
 ##############################################################################
-
-ifeq ($(USE_FWLIB),yes)
-  include $(ST_STD_LIB)/stm32lib.mk
-  CSRC += $(STM32SRC)
-  INCDIR += $(STM32INC)
-  USE_OPT += -DUSE_STDPERIPH_DRIVER
-endif
 
 ##############################################################################
 # Common rules
