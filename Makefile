@@ -275,6 +275,7 @@ ifeq ($(USE_ST_LL_DRIVER),yes)
   include $(ST_LL_DRIVER)/STM32F4xx_LL_Driver.mk
   CSRC += $(STM32_LL_SRC)
   INCDIR += $(STM32_LL_INC)
+  USE_OPT += -DUSE_FULL_LL_DRIVER
 endif
 
 ##############################################################################

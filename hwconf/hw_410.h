@@ -52,6 +52,8 @@
 #define HW_ADC_CHANNELS			12
 #define HW_ADC_INJ_CHANNELS		2
 #define HW_ADC_NBR_CONV			4
+// TODO
+#define HW_ADC_NBR_CONV_LL		LL_ADC_REG_SEQ_SCAN_ENABLE_4RANKS // 4
 
 // ADC Indexes
 #define ADC_IND_SENS1			2

@@ -25,6 +25,9 @@
 #include "mcpwm_foc.h"
 #include "hw.h"
 #include "encoder.h"
+#include "stm32f4xx_ll_tim.h"
+
+#define USE_ST_LL
 
 CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 	CH_IRQ_PROLOGUE();
@@ -34,12 +37,21 @@ CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 }
 
 CH_IRQ_HANDLER(TIM8_CC_IRQHandler) {
+#ifdef USE_OLD
 	if (TIM_GetITStatus(TIM8, TIM_IT_CC1) != RESET) {
 		mcpwm_foc_tim_sample_int_handler();
 
 		// Clear the IT pending bit
 		TIM_ClearITPendingBit(TIM8, TIM_IT_CC1);
 	}
+#elif defined(USE_ST_LL)
+	if(LL_TIM_IsActiveFlag_CC1(TIM8) == 1) {
+		mcpwm_foc_tim_sample_int_handler();
+
+		// Clear the update interrupt flag
+		LL_TIM_ClearFlag_CC1(TIM8);
+	}
+#endif
 }
 
 CH_IRQ_HANDLER(PVD_IRQHandler) {
