@@ -172,9 +172,9 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 
 	init_done= false;
 
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	TIM_BDTRInitTypeDef TIM_BDTRInitStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_OC_InitTypeDef  TIM_OCInitStructure;
+	LL_TIM_BDTR_InitTypeDef TIM_BDTRInitStructure;
 
 	conf = configuration;
 
@@ -226,66 +226,66 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	// Create current FIR filter
 	filter_create_fir_lowpass((float*)current_fir_coeffs, CURR_FIR_FCUT, CURR_FIR_TAPS_BITS, 1);
 
-	TIM_DeInit(TIM1);
-	TIM_DeInit(TIM8);
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
 	TIM1->CNT = 0;
 	TIM8->CNT = 0;
 
 	// TIM1 clock enable
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM1);
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = SYSTEM_CORE_CLOCK / (int)switching_frequency_now;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = SYSTEM_CORE_CLOCK / (int)switching_frequency_now;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
 
-	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
+	LL_TIM_Init(TIM1, &TIM_TimeBaseStructure);
 
 	// Channel 1, 2 and 3 Configuration in PWM mode
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = TIM1->ARR / 2;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
-	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Set;
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.OCNState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = TIM1->ARR / 2;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
 
-	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM1, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH4, &TIM_OCInitStructure);
 
-	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM1, TIM_OCPreload_Enable);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH4);
 
 	// Automatic Output enable, Break, dead time and lock configuration
-	TIM_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
-	TIM_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
-	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_OFF;
-	TIM_BDTRInitStructure.TIM_DeadTime = conf_general_calculate_deadtime(HW_DEAD_TIME_NSEC, SYSTEM_CORE_CLOCK);
-	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;
-	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
-	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
+	TIM_BDTRInitStructure.OSSRState = LL_TIM_OSSR_ENABLE;
+	TIM_BDTRInitStructure.OSSIState = LL_TIM_OSSI_ENABLE;
+	TIM_BDTRInitStructure.LockLevel = LL_TIM_LOCKLEVEL_OFF;
+	TIM_BDTRInitStructure.DeadTime = conf_general_calculate_deadtime(HW_DEAD_TIME_NSEC, SYSTEM_CORE_CLOCK);
+	TIM_BDTRInitStructure.BreakState = LL_TIM_BREAK_DISABLE;
+	TIM_BDTRInitStructure.BreakPolarity = LL_TIM_BREAK_POLARITY_HIGH;
+	TIM_BDTRInitStructure.AutomaticOutput = LL_TIM_AUTOMATICOUTPUT_DISABLE;
 
-	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);
-	TIM_CCPreloadControl(TIM1, ENABLE);
-	TIM_ARRPreloadConfig(TIM1, ENABLE);
+	LL_TIM_BDTR_Init(TIM1, &TIM_BDTRInitStructure);
+	LL_TIM_CC_EnablePreload(TIM1);
+	LL_TIM_EnableARRPreload(TIM1);
 
 	/*
 	 * ADC!
 	 */
-	ADC_CommonInitTypeDef ADC_CommonInitStructure;
-	DMA_InitTypeDef DMA_InitStructure;
-	ADC_InitTypeDef ADC_InitStructure;
+	LEGACY_ADC_CommonInitTypeDef ADC_CommonInitStructure;
+	LL_DMA_InitTypeDef DMA_InitStructure;
+	LEGACY_ADC_InitTypeDef ADC_InitStructure;
 
 	// Clock
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2 | RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2 | RCC_APB2Periph_ADC3, ENABLE);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2 | LL_AHB1_GRP1_PERIPH_GPIOA | LL_AHB1_GRP1_PERIPH_GPIOC);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1 | LL_APB2_GRP1_PERIPH_ADC2 | LL_APB2_GRP1_PERIPH_ADC3);
 
 	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
 			5,
@@ -293,37 +293,37 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 			(void *)0);
 
 	// DMA for the ADC
-	DMA_InitStructure.DMA_Channel = DMA_Channel_0;
-	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)&ADC_Value;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&ADC->CDR;
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
-	DMA_InitStructure.DMA_BufferSize = HW_ADC_CHANNELS;
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
-	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
-	DMA_Init(DMA2_Stream4, &DMA_InitStructure);
+	DMA_InitStructure.Channel = LL_DMA_CHANNEL_0;
+	DMA_InitStructure.MemoryOrM2MDstAddress = (uint32_t)&ADC_Value;
+	DMA_InitStructure.PeriphOrM2MSrcAddress = (uint32_t)&ADC->CDR;
+	DMA_InitStructure.Direction = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
+	DMA_InitStructure.NbData = HW_ADC_CHANNELS;
+	DMA_InitStructure.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+	DMA_InitStructure.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+	DMA_InitStructure.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_HALFWORD;
+	DMA_InitStructure.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_HALFWORD;
+	DMA_InitStructure.Mode = LL_DMA_MODE_CIRCULAR;
+	DMA_InitStructure.Priority = LL_DMA_PRIORITY_HIGH;
+	DMA_InitStructure.FIFOMode = LL_DMA_FIFOMODE_DISABLE;
+	DMA_InitStructure.FIFOThreshold = LL_DMA_FIFOTHRESHOLD_1_4;
+	DMA_InitStructure.MemBurst = LL_DMA_MBURST_SINGLE;
+	DMA_InitStructure.PeriphBurst = LL_DMA_PBURST_SINGLE;
+	LL_DMA_Init(DMA2, LL_DMA_STREAM_4, &DMA_InitStructure);
 
 	// DMA2_Stream0 enable
-	DMA_Cmd(DMA2_Stream4, ENABLE);
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_4);
 
 	// Enable transfer complete interrupt
-	DMA_ITConfig(DMA2_Stream4, DMA_IT_TC, ENABLE);
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_4);
 
 	// ADC Common Init
 	// Note that the ADC is running at 42MHz, which is higher than the
 	// specified 36MHz in the data sheet, but it works.
-	ADC_CommonInitStructure.ADC_Mode = ADC_TripleMode_RegSimult;
-	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div2;
-	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_1;
-	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
-	ADC_CommonInit(&ADC_CommonInitStructure);
+	ADC_CommonInitStructure.Multimode = LL_ADC_MULTI_TRIPLE_REG_SIMULT;
+	ADC_CommonInitStructure.CommonClock = LL_ADC_CLOCK_SYNC_PCLK_DIV2;
+	ADC_CommonInitStructure.MultiDMATransfer = LL_ADC_MULTI_REG_DMA_LIMIT_1;
+	ADC_CommonInitStructure.MultiTwoSamplingDelay = LL_ADC_MULTI_TWOSMP_DELAY_5CYCLES;
+	LL_ADC_CommonInit(__LL_ADC_COMMON_INSTANCE(ADC1), &ADC_CommonInitStructure);
 
 	// Channel-specific settings
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
@@ -341,21 +341,21 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	ADC_Init(ADC3, &ADC_InitStructure);
 
 	// Enable Vrefint channel
-	ADC_TempSensorVrefintCmd(ENABLE);
+	LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_PATH_INTERNAL_VREFINT | LL_ADC_PATH_INTERNAL_TEMPSENSOR);
 
 	// Enable DMA request after last transfer (Multi-ADC mode)
-	ADC_MultiModeDMARequestAfterLastTransferCmd(ENABLE);
+	SET_BIT(ADC->CCR, ADC_CCR_DDS);
 
 	// Injected channels for current measurement at end of cycle
-	ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T1_CC4);
-	ADC_ExternalTrigInjectedConvConfig(ADC2, ADC_ExternalTrigInjecConv_T8_CC2);
+	LL_ADC_INJ_SetTriggerSource(ADC1, LL_ADC_INJ_TRIG_EXT_TIM1_CH4);
+	LL_ADC_INJ_SetTriggerSource(ADC2, LL_ADC_INJ_TRIG_EXT_TIM8_CH2);
 #ifdef HW_HAS_3_SHUNTS
-	ADC_ExternalTrigInjectedConvConfig(ADC3, ADC_ExternalTrigInjecConv_T8_CC3);
+	LL_ADC_INJ_SetTriggerSource(ADC3, LL_ADC_INJ_TRIG_EXT_TIM8_CH3);
 #endif
-	ADC_ExternalTrigInjectedConvEdgeConfig(ADC1, ADC_ExternalTrigInjecConvEdge_Falling);
-	ADC_ExternalTrigInjectedConvEdgeConfig(ADC2, ADC_ExternalTrigInjecConvEdge_Falling);
+	LL_ADC_INJ_StartConversionExtTrig(ADC1, LL_ADC_INJ_TRIG_EXT_FALLING);
+	LL_ADC_INJ_StartConversionExtTrig(ADC2, LL_ADC_INJ_TRIG_EXT_FALLING);
 #ifdef HW_HAS_3_SHUNTS
-	ADC_ExternalTrigInjectedConvEdgeConfig(ADC3, ADC_ExternalTrigInjecConvEdge_Falling);
+	LL_ADC_INJ_StartConversionExtTrig(ADC3, LL_ADC_INJ_TRIG_EXT_FALLING);
 #endif
 	ADC_InjectedSequencerLengthConfig(ADC1, HW_ADC_INJ_CHANNELS);
 	ADC_InjectedSequencerLengthConfig(ADC2, HW_ADC_INJ_CHANNELS);
@@ -366,61 +366,61 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	hw_setup_adc_channels();
 
 	// Interrupt
-	ADC_ITConfig(ADC1, ADC_IT_JEOC, ENABLE);
+	LL_ADC_EnableIT_JEOS(ADC1);
 	nvicEnableVector(ADC_IRQn, 6);
 
 	// Enable ADC1
-	ADC_Cmd(ADC1, ENABLE);
+	LL_ADC_Enable(ADC1);
 
 	// Enable ADC2
-	ADC_Cmd(ADC2, ENABLE);
+	LL_ADC_Enable(ADC2);
 
 	// Enable ADC3
-	ADC_Cmd(ADC3, ENABLE);
+	LL_ADC_Enable(ADC3);
 
 	// ------------- Timer8 for ADC sampling ------------- //
 	// Time Base configuration
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM8);
 
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = 0xFFFF;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(TIM8, &TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = 0xFFFF;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(TIM8, &TIM_TimeBaseStructure);
 
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 500;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
-	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Set;
-	TIM_OC1Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC1PreloadConfig(TIM8, TIM_OCPreload_Enable);
-	TIM_OC2Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC2PreloadConfig(TIM8, TIM_OCPreload_Enable);
-	TIM_OC3Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC3PreloadConfig(TIM8, TIM_OCPreload_Enable);
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = 500;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH3);
 
-	TIM_ARRPreloadConfig(TIM8, ENABLE);
-	TIM_CCPreloadControl(TIM8, ENABLE);
+	LL_TIM_EnableARRPreload(TIM8);
+	LL_TIM_CC_EnablePreload(TIM8);
 
 	// PWM outputs have to be enabled in order to trigger ADC on CCx
-	TIM_CtrlPWMOutputs(TIM8, ENABLE);
+	LL_TIM_EnableAllOutputs(TIM8);
 
 	// TIM1 Master and TIM8 slave
-	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
-	TIM_SelectMasterSlaveMode(TIM1, TIM_MasterSlaveMode_Enable);
-	TIM_SelectInputTrigger(TIM8, TIM_TS_ITR0);
-	TIM_SelectSlaveMode(TIM8, TIM_SlaveMode_Reset);
+	LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_UPDATE);
+	LL_TIM_EnableMasterSlaveMode(TIM1);
+	LL_TIM_SetTriggerInput(TIM8, LL_TIM_TS_ITR0);
+	LL_TIM_SetSlaveMode(TIM8, LL_TIM_SLAVEMODE_RESET);
 
 	// Enable TIM1 and TIM8
-	TIM_Cmd(TIM1, ENABLE);
-	TIM_Cmd(TIM8, ENABLE);
+	LL_TIM_EnableCounter(TIM1);
+	LL_TIM_EnableCounter(TIM8);
 
 	// Main Output Enable
-	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+	LL_TIM_EnableAllOutputs(TIM1);
 
 	// ADC sampling locations
 	stop_pwm_hw();
@@ -471,10 +471,10 @@ void mcpwm_deinit(void) {
 		chThdSleepMilliseconds(1);
 	}
 
-	TIM_DeInit(TIM1);
-	TIM_DeInit(TIM8);
-	ADC_DeInit();
-	DMA_DeInit(DMA2_Stream4);
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
+	LL_ADC_CommonDeInit(__LL_ADC_COMMON_INSTANCE(ADC1));
+	LL_DMA_DeInit(DMA2, LL_DMA_STREAM_4);
 	nvicDisableVector(ADC_IRQn);
 	dmaStreamFree(STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 4)));
 }
@@ -912,19 +912,19 @@ static void stop_pwm_hw(void) {
 	DISABLE_BR();
 #endif
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
-	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+	LL_TIM_GenerateEvent_COM(TIM1);
 
 	set_switching_frequency(conf->m_bldc_f_sw_max);
 }
@@ -940,19 +940,19 @@ static void full_brake_hw(void) {
 	ENABLE_BR();
 #endif
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
-	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+	LL_TIM_GenerateEvent_COM(TIM1);
 
 	set_switching_frequency(conf->m_bldc_f_sw_max);
 }
@@ -1457,14 +1457,14 @@ static THD_FUNCTION(timer_thread, arg) {
 void mcpwm_adc_inj_int_handler(void) {
 	uint32_t t_start = timer_time_now();
 
-	int curr0 = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
-	int curr1 = ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1);
+	int curr0 = (uint16_t)(*(__IO uint32_t*)(((uint32_t)ADC1)+((uint8_t)0x28)+((uint8_t)0x14)));
+	int curr1 = (uint16_t)(*(__IO uint32_t*)(((uint32_t)ADC2)+((uint8_t)0x28)+((uint8_t)0x14)));
 
-	int curr0_2 = ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_2);
-	int curr1_2 = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_2);
+	int curr0_2 = (uint16_t)(*(__IO uint32_t*)(((uint32_t)ADC2)+((uint8_t)0x28)+((uint8_t)0x18)));
+	int curr1_2 = (uint16_t)(*(__IO uint32_t*)(((uint32_t)ADC1)+((uint8_t)0x28)+((uint8_t)0x18)));
 
 #ifdef HW_HAS_3_SHUNTS
-	int curr2 = ADC_GetInjectedConversionValue(ADC3, ADC_InjectedChannel_1);
+	int curr2 = (uint16_t)(*(__IO uint32_t*)(((uint32_t)ADC3)+((uint8_t)0x28)+((uint8_t)0x14)));
 #endif
 
 #ifdef INVERTED_SHUNT_POLARITY
@@ -1718,7 +1718,7 @@ void mcpwm_adc_inj_int_handler(void) {
 			comm_step = detect_step + 1;
 
 			set_next_comm_step(comm_step);
-			TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+			LL_TIM_GenerateEvent_COM(TIM1);
 		}
 	}
 
@@ -2607,7 +2607,7 @@ static void commutate(int steps) {
 		set_next_comm_step(comm_step);
 	}
 
-	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+	LL_TIM_GenerateEvent_COM(TIM1);
 	has_commutated = 1;
 
 	mc_timer_struct timer_tmp;
@@ -2681,37 +2681,37 @@ static void set_switching_frequency(float frequency) {
 static void set_next_comm_step(int next_step) {
 	if (conf->motor_type == MOTOR_TYPE_DC) {
 		// 0
-		TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
-		TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
 		if (direction) {
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 		} else {
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_PWM1);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 		}
 
 		return;
 	}
 
-	uint16_t positive_oc_mode = TIM_OCMode_PWM1;
-	uint16_t negative_oc_mode = TIM_OCMode_Inactive;
+	uint16_t positive_oc_mode = LL_TIM_OCMODE_PWM1;
+	uint16_t negative_oc_mode = LL_TIM_OCMODE_INACTIVE;
 
 	uint16_t positive_highside = TIM_CCx_Enable;
 	uint16_t positive_lowside = TIM_CCxN_Enable;
@@ -2729,7 +2729,7 @@ static void set_next_comm_step(int next_step) {
 			break;
 
 		case PWM_MODE_BIPOLAR:
-			negative_oc_mode = TIM_OCMode_PWM2;
+			negative_oc_mode = LL_TIM_OCMODE_PWM2;
 			break;
 		}
 	}
@@ -2742,19 +2742,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR3();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR1();
@@ -2762,19 +2762,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR2();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
 		}
 	} else if (next_step == 2) {
 		if (direction) {
@@ -2784,19 +2784,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR3();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR3();
@@ -2804,19 +2804,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR2();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
 		}
 	} else if (next_step == 3) {
 		if (direction) {
@@ -2826,19 +2826,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR2();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR2();
@@ -2846,19 +2846,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR3();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
 		}
 	} else if (next_step == 4) {
 		if (direction) {
@@ -2868,19 +2868,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR2();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR1();
@@ -2888,19 +2888,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR3();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
 		}
 	} else if (next_step == 5) {
 		if (direction) {
@@ -2910,19 +2910,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR1();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR3();
@@ -2930,19 +2930,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR1();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
 		}
 	} else if (next_step == 6) {
 		if (direction) {
@@ -2952,19 +2952,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR1();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR2();
@@ -2972,19 +2972,19 @@ static void set_next_comm_step(int next_step) {
 			ENABLE_BR1();
 #endif
 			// 0
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
-			TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
 			// +
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_3, positive_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, positive_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
 
 			// -
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
+			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
 		}
 	} else {
 #ifdef HW_HAS_DRV8313
@@ -2993,16 +2993,16 @@ static void set_next_comm_step(int next_step) {
 		DISABLE_BR3();
 #endif
 		// Invalid phase.. stop PWM!
-		TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
-		TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
-		TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_ForcedAction_InActive);
-		TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
-		TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_ForcedAction_InActive);
-		TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 	}
 }

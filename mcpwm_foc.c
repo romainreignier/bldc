@@ -253,9 +253,9 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 
 	m_init_done = false;
 
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	TIM_BDTRInitTypeDef TIM_BDTRInitStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_OC_InitTypeDef  TIM_OCInitStructure;
+	LL_TIM_BDTR_InitTypeDef TIM_BDTRInitStructure;
 
 	m_conf = configuration;
 
@@ -306,70 +306,70 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	update_hfi_samples(m_conf->foc_hfi_samples);
 	virtual_motor_init();
 
-	TIM_DeInit(TIM1);
-	TIM_DeInit(TIM8);
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
 	TIM1->CNT = 0;
 	TIM8->CNT = 0;
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM1);
 
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_CenterAligned1;
-	TIM_TimeBaseStructure.TIM_Period = SYSTEM_CORE_CLOCK / (int)m_conf->foc_f_sw;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_CENTER_UP;
+	TIM_TimeBaseStructure.Autoreload = SYSTEM_CORE_CLOCK / (int)m_conf->foc_f_sw;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(TIM1, &TIM_TimeBaseStructure);
 
 	// Channel 1, 2 and 3 Configuration in PWM mode
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = TIM1->ARR / 2;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
-	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Set;
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.OCNState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = TIM1->ARR / 2;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
 
-	TIM_OC1Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM1, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM1, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH4, &TIM_OCInitStructure);
 
-	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM1, TIM_OCPreload_Enable);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH4);
 
 	// Automatic Output enable, Break, dead time and lock configuration
-	TIM_BDTRInitStructure.TIM_OSSRState = TIM_OSSRState_Enable;
-	TIM_BDTRInitStructure.TIM_OSSIState = TIM_OSSIState_Enable;
-	TIM_BDTRInitStructure.TIM_LOCKLevel = TIM_LOCKLevel_OFF;
-	TIM_BDTRInitStructure.TIM_DeadTime = conf_general_calculate_deadtime(HW_DEAD_TIME_NSEC, SYSTEM_CORE_CLOCK);
-	TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Disable;
+	TIM_BDTRInitStructure.OSSRState = LL_TIM_OSSR_ENABLE;
+	TIM_BDTRInitStructure.OSSIState = LL_TIM_OSSI_ENABLE;
+	TIM_BDTRInitStructure.LockLevel = LL_TIM_LOCKLEVEL_OFF;
+	TIM_BDTRInitStructure.DeadTime = conf_general_calculate_deadtime(HW_DEAD_TIME_NSEC, SYSTEM_CORE_CLOCK);
+	TIM_BDTRInitStructure.AutomaticOutput = LL_TIM_AUTOMATICOUTPUT_DISABLE;
 
 #ifdef HW_USE_BRK
 	// Enable BRK function. Hardware will asynchronously stop any PWM activity upon an
 	// external fault signal. PWM outputs remain disabled until MCU is reset.
 	// software will catch the BRK flag to report the fault code
-	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Enable;
-	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_Low;
+	TIM_BDTRInitStructure.BreakState = LL_TIM_BREAK_ENABLE;
+	TIM_BDTRInitStructure.BreakPolarity = LL_TIM_BREAK_POLARITY_LOW;
 #else
-	TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;
-	TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_High;
+	TIM_BDTRInitStructure.BreakState = LL_TIM_BREAK_DISABLE;
+	TIM_BDTRInitStructure.BreakPolarity = LL_TIM_BREAK_POLARITY_HIGH;
 #endif
 
-	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);
-	TIM_CCPreloadControl(TIM1, ENABLE);
-	TIM_ARRPreloadConfig(TIM1, ENABLE);
+	LL_TIM_BDTR_Init(TIM1, &TIM_BDTRInitStructure);
+	LL_TIM_CC_EnablePreload(TIM1);
+	LL_TIM_EnableARRPreload(TIM1);
 
 	// ADC
-	ADC_CommonInitTypeDef ADC_CommonInitStructure;
-	DMA_InitTypeDef DMA_InitStructure;
-	ADC_InitTypeDef ADC_InitStructure;
+	LEGACY_ADC_CommonInitTypeDef ADC_CommonInitStructure;
+	LL_DMA_InitTypeDef DMA_InitStructure;
+	LEGACY_ADC_InitTypeDef ADC_InitStructure;
 
 	// Clock
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2 | RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2 | RCC_APB2Periph_ADC3, ENABLE);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2 | LL_AHB1_GRP1_PERIPH_GPIOA | LL_AHB1_GRP1_PERIPH_GPIOC);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1 | LL_APB2_GRP1_PERIPH_ADC2 | LL_APB2_GRP1_PERIPH_ADC3);
 
 	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
 			5,
@@ -377,34 +377,34 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 			(void *)0);
 
 	// DMA for the ADC
-	DMA_InitStructure.DMA_Channel = DMA_Channel_0;
-	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)&ADC_Value;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&ADC->CDR;
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
-	DMA_InitStructure.DMA_BufferSize = HW_ADC_CHANNELS;
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
-	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
-	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
-	DMA_Init(DMA2_Stream4, &DMA_InitStructure);
+	DMA_InitStructure.Channel = LL_DMA_CHANNEL_0;
+	DMA_InitStructure.MemoryOrM2MDstAddress = (uint32_t)&ADC_Value;
+	DMA_InitStructure.PeriphOrM2MSrcAddress = (uint32_t)&ADC->CDR;
+	DMA_InitStructure.Direction = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
+	DMA_InitStructure.NbData = HW_ADC_CHANNELS;
+	DMA_InitStructure.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+	DMA_InitStructure.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+	DMA_InitStructure.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_HALFWORD;
+	DMA_InitStructure.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_HALFWORD;
+	DMA_InitStructure.Mode = LL_DMA_MODE_CIRCULAR;
+	DMA_InitStructure.Priority = LL_DMA_PRIORITY_HIGH;
+	DMA_InitStructure.FIFOMode = LL_DMA_FIFOMODE_DISABLE;
+	DMA_InitStructure.FIFOThreshold = LL_DMA_FIFOTHRESHOLD_1_4;
+	DMA_InitStructure.MemBurst = LL_DMA_MBURST_SINGLE;
+	DMA_InitStructure.PeriphBurst = LL_DMA_PBURST_SINGLE;
+	LL_DMA_Init(DMA2, LL_DMA_STREAM_4, &DMA_InitStructure);
 
-	DMA_Cmd(DMA2_Stream4, ENABLE);
-	DMA_ITConfig(DMA2_Stream4, DMA_IT_TC, ENABLE);
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_4);
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_4);
 
 	// ADC Common Init
 	// Note that the ADC is running at 42MHz, which is higher than the
 	// specified 36MHz in the data sheet, but it works.
-	ADC_CommonInitStructure.ADC_Mode = ADC_TripleMode_RegSimult;
-	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div2;
-	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_1;
-	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
-	ADC_CommonInit(&ADC_CommonInitStructure);
+	ADC_CommonInitStructure.Multimode = LL_ADC_MULTI_TRIPLE_REG_SIMULT;
+	ADC_CommonInitStructure.CommonClock = LL_ADC_CLOCK_SYNC_PCLK_DIV2;
+	ADC_CommonInitStructure.MultiDMATransfer = LL_ADC_MULTI_REG_DMA_LIMIT_1;
+	ADC_CommonInitStructure.MultiTwoSamplingDelay = LL_ADC_MULTI_TWOSMP_DELAY_5CYCLES;
+	LL_ADC_CommonInit(__LL_ADC_COMMON_INSTANCE(ADC1), &ADC_CommonInitStructure);
 
 	// Channel-specific settings
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
@@ -421,57 +421,57 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	ADC_Init(ADC2, &ADC_InitStructure);
 	ADC_Init(ADC3, &ADC_InitStructure);
 
-	ADC_TempSensorVrefintCmd(ENABLE);
-	ADC_MultiModeDMARequestAfterLastTransferCmd(ENABLE);
+	LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_PATH_INTERNAL_VREFINT | LL_ADC_PATH_INTERNAL_TEMPSENSOR);
+	SET_BIT(ADC->CCR, ADC_CCR_DDS);
 
 	hw_setup_adc_channels();
 
-	ADC_Cmd(ADC1, ENABLE);
-	ADC_Cmd(ADC2, ENABLE);
-	ADC_Cmd(ADC3, ENABLE);
+	LL_ADC_Enable(ADC1);
+	LL_ADC_Enable(ADC2);
+	LL_ADC_Enable(ADC3);
 
 	// ------------- Timer8 for ADC sampling ------------- //
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM8);
 
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = 0xFFFF;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(TIM8, &TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = 0xFFFF;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(TIM8, &TIM_TimeBaseStructure);
 
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 500;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCNPolarity_High;
-	TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitStructure.TIM_OCNIdleState = TIM_OCNIdleState_Set;
-	TIM_OC1Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC1PreloadConfig(TIM8, TIM_OCPreload_Enable);
-	TIM_OC2Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC2PreloadConfig(TIM8, TIM_OCPreload_Enable);
-	TIM_OC3Init(TIM8, &TIM_OCInitStructure);
-	TIM_OC3PreloadConfig(TIM8, TIM_OCPreload_Enable);
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = 500;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH3);
 
-	TIM_ARRPreloadConfig(TIM8, ENABLE);
-	TIM_CCPreloadControl(TIM8, ENABLE);
+	LL_TIM_EnableARRPreload(TIM8);
+	LL_TIM_CC_EnablePreload(TIM8);
 
 	// PWM outputs have to be enabled in order to trigger ADC on CCx
-	TIM_CtrlPWMOutputs(TIM8, ENABLE);
+	LL_TIM_EnableAllOutputs(TIM8);
 
 	// TIM1 Master and TIM8 slave
-	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
-	TIM_SelectMasterSlaveMode(TIM1, TIM_MasterSlaveMode_Enable);
-	TIM_SelectInputTrigger(TIM8, TIM_TS_ITR0);
-	TIM_SelectSlaveMode(TIM8, TIM_SlaveMode_Reset);
+	LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_UPDATE);
+	LL_TIM_EnableMasterSlaveMode(TIM1);
+	LL_TIM_SetTriggerInput(TIM8, LL_TIM_TS_ITR0);
+	LL_TIM_SetSlaveMode(TIM8, LL_TIM_SLAVEMODE_RESET);
 
 	// Enable TIM1 and TIM8
-	TIM_Cmd(TIM1, ENABLE);
-	TIM_Cmd(TIM8, ENABLE);
+	LL_TIM_EnableCounter(TIM1);
+	LL_TIM_EnableCounter(TIM8);
 
 	// Main Output Enable
-	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+	LL_TIM_EnableAllOutputs(TIM1);
 
 	stop_pwm_hw();
 
@@ -480,7 +480,7 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	TIMER_UPDATE_SAMP(MCPWM_FOC_CURRENT_SAMP_OFFSET);
 
 	// Enable CC1 interrupt, which will be fired in V0 and V7
-	TIM_ITConfig(TIM8, TIM_IT_CC1, ENABLE);
+	LL_TIM_EnableIT_CC1(TIM8);
 	nvicEnableVector(TIM8_CC_IRQn, 6);
 
 	utils_sys_unlock_cnt();
@@ -530,10 +530,10 @@ void mcpwm_foc_deinit(void) {
 		chThdSleepMilliseconds(1);
 	}
 
-	TIM_DeInit(TIM1);
-	TIM_DeInit(TIM8);
-	ADC_DeInit();
-	DMA_DeInit(DMA2_Stream4);
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
+	LL_ADC_CommonDeInit(__LL_ADC_COMMON_INSTANCE(ADC1));
+	LL_DMA_DeInit(DMA2, LL_DMA_STREAM_4);
 	nvicDisableVector(ADC_IRQn);
 	dmaStreamFree(STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 4)));
 }
@@ -1795,7 +1795,7 @@ float mcpwm_foc_get_last_adc_isr_duration(void) {
 void mcpwm_foc_tim_sample_int_handler(void) {
 	if (m_init_done) {
 		// Generate COM event here for synchronization
-		TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+		LL_TIM_GenerateEvent_COM(TIM1);
 
 		virtual_motor_int_handler(m_motor_state.v_alpha, m_motor_state.v_beta);
 	}
@@ -3224,19 +3224,19 @@ static void run_pid_control_speed(float dt) {
 }
 
 static void stop_pwm_hw(void) {
-	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_ForcedAction_InActive);
-	TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
-	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+	LL_TIM_GenerateEvent_COM(TIM1);
 
 #ifdef HW_HAS_DRV8313
 	DISABLE_BR();
@@ -3245,17 +3245,17 @@ static void stop_pwm_hw(void) {
 }
 
 static void start_pwm_hw(void) {
-	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);
-	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_PWM1);
-	TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
 
-	TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_PWM1);
-	TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
 
 	// Generate COM event in ADC interrupt to get better synchronization
 //	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);

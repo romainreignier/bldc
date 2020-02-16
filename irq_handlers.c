@@ -28,7 +28,7 @@
 
 CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 	CH_IRQ_PROLOGUE();
-	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
+	LL_ADC_ClearFlag_JEOS(ADC1);
 	mc_interface_adc_inj_int_handler();
 	CH_IRQ_EPILOGUE();
 }
@@ -43,31 +43,31 @@ CH_IRQ_HANDLER(HW_ENC_EXTI_ISR_VEC) {
 }
 
 CH_IRQ_HANDLER(HW_ENC_TIM_ISR_VEC) {
-	if (TIM_GetITStatus(HW_ENC_TIM, TIM_IT_Update) != RESET) {
+	if ((LL_TIM_IsActiveFlag_UPDATE(HW_ENC_TIM) && LL_TIM_IsEnabledIT_UPDATE(HW_ENC_TIM)) != RESET) {
 		encoder_tim_isr();
 
 		// Clear the IT pending bit
-		TIM_ClearITPendingBit(HW_ENC_TIM, TIM_IT_Update);
+		LL_TIM_ClearFlag_UPDATE(HW_ENC_TIM);
 	}
 }
 
 CH_IRQ_HANDLER(TIM8_CC_IRQHandler) {
-	if (TIM_GetITStatus(TIM8, TIM_IT_CC1) != RESET) {
+	if ((LL_TIM_IsActiveFlag_CC1(TIM8) && LL_TIM_IsEnabledIT_CC1(TIM8)) != RESET) {
 		mcpwm_foc_tim_sample_int_handler();
 
 		// Clear the IT pending bit
-		TIM_ClearITPendingBit(TIM8, TIM_IT_CC1);
+		LL_TIM_ClearFlag_CC1(TIM8);
 	}
 }
 
 CH_IRQ_HANDLER(PVD_IRQHandler) {
-	if (EXTI_GetITStatus(EXTI_Line16) != RESET) {
+	if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_16) != RESET) {
 		// Log the fault. Supply voltage dropped below 2.9V,
 		// could corrupt an ongoing flash programming
 		mc_interface_fault_stop(FAULT_CODE_MCU_UNDER_VOLTAGE);
 
 		// Clear the PVD pending bit
-		EXTI_ClearITPendingBit(EXTI_Line16);
-		EXTI_ClearFlag(EXTI_Line16);
+		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_16);
+		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_16);
 	}
 }

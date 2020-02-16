@@ -336,7 +336,7 @@
 #define HW_CANL_PIN				9
 #endif
 #ifndef HW_CAN_GPIO_AF
-#define HW_CAN_GPIO_AF			GPIO_AF_CAN1
+#define HW_CAN_GPIO_AF			LL_GPIO_AF_9
 #endif
 #ifndef HW_CAN_DEV
 #define HW_CAN_DEV				CAND1

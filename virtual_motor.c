@@ -163,7 +163,7 @@ static void connect_virtual_motor(float ml , float J, float Ld, float Lq,
 		//first we send 0.0 current command to make system stop PWM outputs
 		mcpwm_foc_set_current(0.0);
 		//first we disconnect the ADC triggering from TIM8_CC1
-		ADC_InitTypeDef ADC_InitStructure;
+		LEGACY_ADC_InitTypeDef ADC_InitStructure;
 
 		ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
 		ADC_InitStructure.ADC_ScanConvMode = ENABLE;
@@ -234,7 +234,7 @@ static void disconnect_virtual_motor( void ){
 															m_curr2_offset_backup);
 
 		//then we reconnect the ADC triggering to TIM8_CC1
-		ADC_InitTypeDef ADC_InitStructure;
+		LEGACY_ADC_InitTypeDef ADC_InitStructure;
 
 		ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
 		ADC_InitStructure.ADC_ScanConvMode = ENABLE;

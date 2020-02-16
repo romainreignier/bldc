@@ -24,7 +24,8 @@
 #include "ch.h"
 #include "hal.h"
 #include "stm32f4xx_conf.h"
-#include "stm32f4xx_rcc.h"
+#include "stm32f4xx_ll_rcc.h"
+#include "stm32f4xx_ll_bus.h"
 #include "utils.h"
 #include "terminal.h"
 #include "commands.h"
@@ -98,10 +99,10 @@ void hw_init_gpio(void) {
 	hw_axiom_configure_VDD_undervoltage();
 
 	// GPIO clock enable
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
 
 	// LEDs
 	palSetPadMode(GPIOB, 2, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
@@ -137,23 +138,23 @@ void hw_init_gpio(void) {
 	hw_axiom_init_FPGA_CLK();
 
 	// GPIOA Configuration: Channel 1 to 3 as alternate function push-pull
-	palSetPadMode(GPIOA, 8, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOA, 8, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
-	palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
-	palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
 
-	palSetPadMode(GPIOB, 13, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOB, 13, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
-	palSetPadMode(GPIOB, 14, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOB, 14, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
-	palSetPadMode(GPIOB, 15, PAL_MODE_ALTERNATE(GPIO_AF_TIM1) |
+	palSetPadMode(GPIOB, 15, PAL_MODE_ALTERNATE(LL_GPIO_AF_1) |
 			PAL_STM32_OSPEED_HIGHEST |
 			PAL_STM32_PUPDR_FLOATING);
 
@@ -218,47 +219,74 @@ void hw_init_gpio(void) {
 
 void hw_setup_adc_channels(void) {
 	// ADC1 regular channels
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0,  1, ADC_SampleTime_15Cycles);	// 0	SENS1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 2, ADC_SampleTime_15Cycles);	// 3	CURR1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_8,  3, ADC_SampleTime_15Cycles); // 6	Throttle2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_14, 4, ADC_SampleTime_15Cycles); // 9	TEMP_MOTOR
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_9,  5, ADC_SampleTime_15Cycles);	// 12	V_GATE_DRIVER
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_5,  6, ADC_SampleTime_15Cycles);	// 15	IGBT_TEMP3
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_0, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_0);	// 0	SENS1
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_10, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_2, LL_ADC_CHANNEL_10);	// 3	CURR1
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_8, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_3, LL_ADC_CHANNEL_8); // 6	Throttle2
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_14, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_4, LL_ADC_CHANNEL_14); // 9	TEMP_MOTOR
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_9, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_5, LL_ADC_CHANNEL_9);	// 12	V_GATE_DRIVER
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_5, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_6, LL_ADC_CHANNEL_5);	// 15	IGBT_TEMP3
 
 	// ADC2 regular channels
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_1,  1, ADC_SampleTime_15Cycles);	// 1	SENS2
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_11, 2, ADC_SampleTime_15Cycles);	// 4	CURR2
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_6,  3, ADC_SampleTime_15Cycles);	// 7	IGBT_TEMP2
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_15, 4, ADC_SampleTime_15Cycles);	// 10	Throttle1
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_4,  5, ADC_SampleTime_15Cycles);	// 13	IGBT_TEMP1
-	ADC_RegularChannelConfig(ADC2, ADC_Channel_Vrefint,  6, ADC_SampleTime_15Cycles);// 16	VREFINT
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_1, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_1);	// 1	SENS2
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_11, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_2, LL_ADC_CHANNEL_11);	// 4	CURR2
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_6, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_3, LL_ADC_CHANNEL_6);	// 7	IGBT_TEMP2
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_15, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_4, LL_ADC_CHANNEL_15);	// 10	Throttle1
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_4, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_5, LL_ADC_CHANNEL_4);	// 13	IGBT_TEMP1
+	LL_ADC_SetChannelSamplingTime(ADC2, ADC_Channel_Vrefint, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_6, ADC_Channel_Vrefint);// 16	VREFINT
 
 	// ADC3 regular channels
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_2,  1, ADC_SampleTime_15Cycles);	// 2	SENS3
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_12, 2, ADC_SampleTime_15Cycles);	// 5	CURR3
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_3,  3, ADC_SampleTime_15Cycles); // 8	PCB_TEMP
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_13, 4, ADC_SampleTime_15Cycles);	// 11	VBUS
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_3,  5, ADC_SampleTime_15Cycles);	// 14	UNUSED
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_Vrefint,  6, ADC_SampleTime_15Cycles);// 17
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_2, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_2);	// 2	SENS3
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_12, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_2, LL_ADC_CHANNEL_12);	// 5	CURR3
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_3, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_3, LL_ADC_CHANNEL_3); // 8	PCB_TEMP
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_13, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_4, LL_ADC_CHANNEL_13);	// 11	VBUS
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_3, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_5, LL_ADC_CHANNEL_3);	// 14	UNUSED
+	LL_ADC_SetChannelSamplingTime(ADC3, ADC_Channel_Vrefint, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_REG_SetSequencerRanks(ADC3, LL_ADC_REG_RANK_6, ADC_Channel_Vrefint);// 17
 
 	// Injected channels
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 1, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 1, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 2, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 2, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 2, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC1, ADC_Channel_10, 3, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC2, ADC_Channel_11, 3, ADC_SampleTime_15Cycles);
-	ADC_InjectedChannelConfig(ADC3, ADC_Channel_12, 3, ADC_SampleTime_15Cycles);
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_10, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC1, LL_ADC_INJ_RANK_1, LL_ADC_CHANNEL_10);
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_11, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC2, LL_ADC_INJ_RANK_1, LL_ADC_CHANNEL_11);
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_12, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC3, LL_ADC_INJ_RANK_1, LL_ADC_CHANNEL_12);
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_10, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC1, LL_ADC_INJ_RANK_2, LL_ADC_CHANNEL_10);
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_11, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC2, LL_ADC_INJ_RANK_2, LL_ADC_CHANNEL_11);
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_12, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC3, LL_ADC_INJ_RANK_2, LL_ADC_CHANNEL_12);
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_10, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC1, LL_ADC_INJ_RANK_3, LL_ADC_CHANNEL_10);
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_11, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC2, LL_ADC_INJ_RANK_3, LL_ADC_CHANNEL_11);
+	LL_ADC_SetChannelSamplingTime(ADC3, LL_ADC_CHANNEL_12, LL_ADC_SAMPLINGTIME_15CYCLES);
+	LL_ADC_INJ_SetSequencerRanks(ADC3, LL_ADC_INJ_RANK_3, LL_ADC_CHANNEL_12);
 }
 
 void hw_axiom_setup_dac(void) {
 	// GPIOA clock enable
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
 
 	// DAC Periph clock enable
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_DAC1);
 
 	// DAC channel 1 & 2 (DAC_OUT1 = PA.4)(DAC_OUT2 = PA.5) configuration
 	palSetPadMode(GPIOA, 4, PAL_MODE_INPUT_ANALOG);
@@ -303,14 +331,14 @@ void hw_axiom_configure_VDD_undervoltage(void) {
 	// partially configured in mcuconf.h -> STM32_PVD_ENABLE and STM32_PLS
 
 	// Connect EXTI Line to pin
-	EXTI_InitTypeDef   EXTI_InitStructure;
+	LL_EXTI_InitTypeDef   EXTI_InitStructure;
 
 	// Configure EXTI Line
-	EXTI_InitStructure.EXTI_Line = EXTI_Line16;		//Connected to Programmable Voltage Detector
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&EXTI_InitStructure);
+	EXTI_InitStructure.Line_0_31 = LL_EXTI_LINE_16;		//Connected to Programmable Voltage Detector
+	EXTI_InitStructure.Mode = LL_EXTI_MODE_IT;
+	EXTI_InitStructure.Trigger = LL_EXTI_TRIGGER_RISING;
+	EXTI_InitStructure.LineCommand = ENABLE;
+	LL_EXTI_Init(&EXTI_InitStructure);
 
 	// Enable and set EXTI Line Interrupt to the highest priority
 	nvicEnableVector(PVD_IRQn, 0);
@@ -463,21 +491,21 @@ void hw_axiom_init_FPGA_CLK(void) {
 	/* SAI_CLK(first level) = PLLI2S_VCO/PLLI2SQ = 192/4 = 48 Mhz */
 	RCC->PLLI2SCFGR = (192 << 6) | (4 << 28);
 	/* Enable PLLI2S Clock */
-	RCC_PLLI2SCmd(ENABLE);
+	LL_RCC_PLLI2S_Enable();
 
 	/* Wait till PLLI2S is ready */
-	while(RCC_GetFlagStatus(RCC_FLAG_PLLI2SRDY) == RESET)
+	while(LL_RCC_PLLI2S_IsReady() == RESET)
 	{
 	}
 
 	/* Configure MCO2 pin(PC9) in alternate function */
-	palSetPadMode(AXIOM_FPGA_CLK_PORT, AXIOM_FPGA_CLK_PIN, PAL_MODE_ALTERNATE(GPIO_AF_MCO) |
+	palSetPadMode(AXIOM_FPGA_CLK_PORT, AXIOM_FPGA_CLK_PIN, PAL_MODE_ALTERNATE(LL_GPIO_AF_0) |
 				PAL_STM32_OTYPE_PUSHPULL |
 				PAL_STM32_OSPEED_HIGHEST |
 				PAL_STM32_PUPDR_PULLUP);
 
 	// HSE clock selected to output on MCO2 pin(PA8) 48MHz/4 = 12MHz
-	RCC_MCO2Config(RCC_MCO2Source_PLLI2SCLK, RCC_MCO2Div_4);
+	LL_RCC_ConfigMCO(LL_RCC_MCO2SOURCE_PLLI2S, LL_RCC_MCO2_DIV_4);
 }
 
 char hw_axiom_configure_FPGA(void) {

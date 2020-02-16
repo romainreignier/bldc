@@ -1549,7 +1549,7 @@ void mc_interface_mc_timer_isr(void) {
 
 #ifdef HW_USE_BRK
 	// BRK fault code
-	if (TIM_GetFlagStatus(TIM1, TIM_FLAG_Break) != RESET) {
+	if (LL_TIM_IsActiveFlag_BRK(TIM1) != RESET) {
 		mc_interface_fault_stop(FAULT_CODE_BRK);
 		// latch the BRK/FAULT pin to low until next MCU reset
 		palSetPadMode(BRK_GPIO, BRK_PIN, PAL_MODE_OUTPUT_PUSHPULL);

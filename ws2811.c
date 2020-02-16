@@ -41,9 +41,9 @@ static uint32_t brightness;
 static uint32_t rgb_to_local(uint32_t color);
 
 void ws2811_init(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	DMA_InitTypeDef DMA_InitStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_OC_InitTypeDef  TIM_OCInitStructure;
+	LL_DMA_InitTypeDef DMA_InitStructure;
 
 	brightness = 100;
 
@@ -80,91 +80,91 @@ void ws2811_init(void) {
 
 #if WS2811_USE_CH2
 	palSetPadMode(GPIOB, 7,
-			PAL_MODE_ALTERNATE(GPIO_AF_TIM4) |
+			PAL_MODE_ALTERNATE(LL_GPIO_AF_2) |
 			PAL_STM32_OTYPE_OPENDRAIN |
 			PAL_STM32_OSPEED_MID1);
 #else
 	palSetPadMode(GPIOB, 6,
-			PAL_MODE_ALTERNATE(GPIO_AF_TIM4) |
+			PAL_MODE_ALTERNATE(LL_GPIO_AF_2) |
 			PAL_STM32_OTYPE_OPENDRAIN |
 			PAL_STM32_OSPEED_MID1);
 #endif
 
 	// DMA clock enable
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1 , ENABLE);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
 
 #if WS2811_USE_CH2
-	DMA_DeInit(DMA1_Stream3);
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&TIM4->CCR2;
+	LL_DMA_DeInit(DMA1, LL_DMA_STREAM_3);
+	DMA_InitStructure.PeriphOrM2MSrcAddress = (uint32_t)&TIM4->CCR2;
 #else
-	DMA_DeInit(DMA1_Stream0);
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&TIM4->CCR1;
+	LL_DMA_DeInit(DMA1, LL_DMA_STREAM_0);
+	DMA_InitStructure.PeriphOrM2MSrcAddress = (uint32_t)&TIM4->CCR1;
 #endif
-	DMA_InitStructure.DMA_Channel = DMA_Channel_2;
-	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)bitbuffer;
-	DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
-	DMA_InitStructure.DMA_BufferSize = BITBUFFER_LEN;
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
-	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
-	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+	DMA_InitStructure.Channel = LL_DMA_CHANNEL_2;
+	DMA_InitStructure.MemoryOrM2MDstAddress = (uint32_t)bitbuffer;
+	DMA_InitStructure.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
+	DMA_InitStructure.NbData = BITBUFFER_LEN;
+	DMA_InitStructure.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+	DMA_InitStructure.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+	DMA_InitStructure.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_HALFWORD;
+	DMA_InitStructure.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_HALFWORD;
+	DMA_InitStructure.Mode = LL_DMA_MODE_CIRCULAR;
+	DMA_InitStructure.Priority = LL_DMA_PRIORITY_HIGH;
+	DMA_InitStructure.FIFOMode = LL_DMA_FIFOMODE_DISABLE;
+	DMA_InitStructure.FIFOThreshold = LL_DMA_FIFOTHRESHOLD_FULL;
+	DMA_InitStructure.MemBurst = LL_DMA_MBURST_SINGLE;
+	DMA_InitStructure.PeriphBurst = LL_DMA_PBURST_SINGLE;
 
 #if WS2811_USE_CH2
-	DMA_Init(DMA1_Stream3, &DMA_InitStructure);
+	LL_DMA_Init(DMA1, LL_DMA_STREAM_3, &DMA_InitStructure);
 #else
-	DMA_Init(DMA1_Stream0, &DMA_InitStructure);
+	LL_DMA_Init(DMA1, LL_DMA_STREAM_0, &DMA_InitStructure);
 #endif
 
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM4);
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = TIM_PERIOD;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = TIM_PERIOD;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
 
-	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+	LL_TIM_Init(TIM4, &TIM_TimeBaseStructure);
 
 	// Channel 1 Configuration in PWM mode
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = bitbuffer[0];
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = bitbuffer[0];
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
 #if WS2811_USE_CH2
-	TIM_OC2Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC2PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	LL_TIM_OC_Init(TIM4, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM4, LL_TIM_CHANNEL_CH2);
 #else
-	TIM_OC1Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	LL_TIM_OC_Init(TIM4, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM4, LL_TIM_CHANNEL_CH1);
 #endif
 
 	// TIM4 counter enable
-	TIM_Cmd(TIM4, ENABLE);
+	LL_TIM_EnableCounter(TIM4);
 
 	// DMA enable
 #if WS2811_USE_CH2
-	DMA_Cmd(DMA1_Stream3, ENABLE);
+	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_3);
 #else
-	DMA_Cmd(DMA1_Stream0, ENABLE);
+	LL_DMA_EnableStream(DMA1, LL_DMA_STREAM_0);
 #endif
 
 	// TIM4 Update DMA Request enable
 #if WS2811_USE_CH2
-	TIM_DMACmd(TIM4, TIM_DMA_CC2, ENABLE);
+	LL_TIM_EnableDMAReq_CC2(TIM4);
 #else
-	TIM_DMACmd(TIM4, TIM_DMA_CC1, ENABLE);
+	LL_TIM_EnableDMAReq_CC1(TIM4);
 #endif
 
 	// Main Output Enable
-	TIM_CtrlPWMOutputs(TIM4, ENABLE);
+	LL_TIM_EnableAllOutputs(TIM4);
 }
 
 void ws2811_set_led_color(int led, uint32_t color) {

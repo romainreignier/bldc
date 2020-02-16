@@ -31,39 +31,39 @@
 #if SERVO_OUT_ENABLE
 
 void servo_simple_init(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_OCInitTypeDef  TIM_OCInitStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_OC_InitTypeDef  TIM_OCInitStructure;
 
 	palSetPadMode(HW_ICU_GPIO, HW_ICU_PIN, PAL_MODE_ALTERNATE(HW_ICU_GPIO_AF) |
 			PAL_STM32_OSPEED_HIGHEST | PAL_STM32_PUPDR_FLOATING);
 
 	HW_ICU_TIM_CLK_EN();
 
-	TIM_TimeBaseStructure.TIM_Period = (uint16_t)((uint32_t)TIM_CLOCK / (uint32_t)SERVO_OUT_RATE_HZ);
-	TIM_TimeBaseStructure.TIM_Prescaler = (uint16_t)((168000000 / 2) / TIM_CLOCK) - 1;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseStructure.Autoreload = (uint16_t)((uint32_t)TIM_CLOCK / (uint32_t)SERVO_OUT_RATE_HZ);
+	TIM_TimeBaseStructure.Prescaler = (uint16_t)((168000000 / 2) / TIM_CLOCK) - 1;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
 
-	TIM_TimeBaseInit(HW_ICU_TIMER, &TIM_TimeBaseStructure);
+	LL_TIM_Init(HW_ICU_TIMER, &TIM_TimeBaseStructure);
 
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 0;
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = 0;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
 	if (HW_ICU_CHANNEL == ICU_CHANNEL_1) {
-		TIM_OC1Init(HW_ICU_TIMER, &TIM_OCInitStructure);
-		TIM_OC1PreloadConfig(HW_ICU_TIMER, TIM_OCPreload_Enable);
+		LL_TIM_OC_Init(HW_ICU_TIMER, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+		LL_TIM_OC_EnablePreload(HW_ICU_TIMER, LL_TIM_CHANNEL_CH1);
 	} else if (HW_ICU_CHANNEL == ICU_CHANNEL_2) {
-		TIM_OC2Init(HW_ICU_TIMER, &TIM_OCInitStructure);
-		TIM_OC2PreloadConfig(HW_ICU_TIMER, TIM_OCPreload_Enable);
+		LL_TIM_OC_Init(HW_ICU_TIMER, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+		LL_TIM_OC_EnablePreload(HW_ICU_TIMER, LL_TIM_CHANNEL_CH2);
 	}
 
-	TIM_ARRPreloadConfig(HW_ICU_TIMER, ENABLE);
+	LL_TIM_EnableARRPreload(HW_ICU_TIMER);
 
 	servo_simple_set_output(0.5);
 
-	TIM_Cmd(HW_ICU_TIMER, ENABLE);
+	LL_TIM_EnableCounter(HW_ICU_TIMER);
 }
 
 void servo_simple_set_output(float out) {

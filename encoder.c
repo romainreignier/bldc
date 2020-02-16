@@ -194,7 +194,7 @@ void encoder_deinit(void) {
 	nvicDisableVector(HW_ENC_EXTI_CH);
 	nvicDisableVector(HW_ENC_TIM_ISR_CH);
 
-	TIM_DeInit(HW_ENC_TIM);
+	LL_TIM_DeInit(HW_ENC_TIM);
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT_PULLUP);
 	palSetPadMode(SPI_SW_SCK_GPIO, SPI_SW_SCK_PIN, PAL_MODE_INPUT_PULLUP);
@@ -225,7 +225,7 @@ void encoder_deinit(void) {
 }
 
 void encoder_init_abi(uint32_t counts) {
-	EXTI_InitTypeDef   EXTI_InitStructure;
+	LL_EXTI_InitTypeDef   EXTI_InitStructure;
 
 	// Initialize variables
 	index_found = false;
@@ -239,30 +239,32 @@ void encoder_init_abi(uint32_t counts) {
 	HW_ENC_TIM_CLK_EN();
 
 	// Enable SYSCFG clock
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
 
-	TIM_EncoderInterfaceConfig (HW_ENC_TIM, TIM_EncoderMode_TI12,
-			TIM_ICPolarity_Rising,
-			TIM_ICPolarity_Rising);
-	TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+	LL_TIM_SetEncoderMode(HW_ENC_TIM, LL_TIM_ENCODERMODE_X4_TI12);
+	LL_TIM_IC_SetActiveInput(HW_ENC_TIM, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
+	LL_TIM_IC_SetActiveInput(HW_ENC_TIM, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
+	LL_TIM_IC_SetPolarity(HW_ENC_TIM, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_RISING);
+	LL_TIM_IC_SetPolarity(HW_ENC_TIM, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
+	LL_TIM_SetAutoReload(HW_ENC_TIM, enc_counts - 1);
 
 	// Filter
 	HW_ENC_TIM->CCMR1 |= 6 << 12 | 6 << 4;
 	HW_ENC_TIM->CCMR2 |= 6 << 4;
 
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	LL_TIM_EnableCounter(HW_ENC_TIM);
 
 	// Interrupt on index pulse
 
 	// Connect EXTI Line to pin
-	SYSCFG_EXTILineConfig(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
+	LL_SYSCFG_SetEXTISource(HW_ENC_EXTI_PORTSRC, HW_ENC_EXTI_PINSRC);
 
 	// Configure EXTI Line
-	EXTI_InitStructure.EXTI_Line = HW_ENC_EXTI_LINE;
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-	EXTI_Init(&EXTI_InitStructure);
+	EXTI_InitStructure.Line_0_31 = HW_ENC_EXTI_LINE;
+	EXTI_InitStructure.Mode = LL_EXTI_MODE_IT;
+	EXTI_InitStructure.Trigger = LL_EXTI_TRIGGER_RISING;
+	EXTI_InitStructure.LineCommand = ENABLE;
+	LL_EXTI_Init(&EXTI_InitStructure);
 
 	// Enable and set EXTI Line Interrupt to the highest priority
 	nvicEnableVector(HW_ENC_EXTI_CH, 0);
@@ -271,7 +273,7 @@ void encoder_init_abi(uint32_t counts) {
 }
 
 void encoder_init_as5047p_spi(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
 
 	palSetPadMode(SPI_SW_MISO_GPIO, SPI_SW_MISO_PIN, PAL_MODE_INPUT);
 	palSetPadMode(SPI_SW_SCK_GPIO, SPI_SW_SCK_PIN, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
@@ -287,18 +289,18 @@ void encoder_init_as5047p_spi(void) {
 	HW_ENC_TIM_CLK_EN();
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = ((168000000 / 2 / AS5047_SAMPLE_RATE_HZ) - 1);
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(HW_ENC_TIM, &TIM_TimeBaseStructure);
 
 	// Enable overflow interrupt
-	TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	LL_TIM_EnableIT_UPDATE(HW_ENC_TIM);
 
 	// Enable timer
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	LL_TIM_EnableCounter(HW_ENC_TIM);
 
 	nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
 
@@ -308,7 +310,7 @@ void encoder_init_as5047p_spi(void) {
 }
 
 void encoder_init_ad2s1205_spi(void) {
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
 
 	resolver_loss_of_tracking_error_rate = 0.0;
 	resolver_degradation_of_signal_error_rate = 0.0;
@@ -341,18 +343,18 @@ void encoder_init_ad2s1205_spi(void) {
 	HW_ENC_TIM_CLK_EN();
 
 	// Time Base configuration
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_Period = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
-	TIM_TimeBaseInit(HW_ENC_TIM, &TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = ((168000000 / 2 / AD2S1205_SAMPLE_RATE_HZ) - 1);
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(HW_ENC_TIM, &TIM_TimeBaseStructure);
 
 	// Enable overflow interrupt
-	TIM_ITConfig(HW_ENC_TIM, TIM_IT_Update, ENABLE);
+	LL_TIM_EnableIT_UPDATE(HW_ENC_TIM);
 
 	// Enable timer
-	TIM_Cmd(HW_ENC_TIM, ENABLE);
+	LL_TIM_EnableCounter(HW_ENC_TIM);
 
 	nvicEnableVector(HW_ENC_TIM_ISR_CH, 6);
 
@@ -618,7 +620,7 @@ void encoder_tim_isr(void) {
 void encoder_set_counts(uint32_t counts) {
 	if (counts != enc_counts) {
 		enc_counts = counts;
-		TIM_SetAutoreload(HW_ENC_TIM, enc_counts - 1);
+		LL_TIM_SetAutoReload(HW_ENC_TIM, enc_counts - 1);
 		index_found = false;
 	}
 }

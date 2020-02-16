@@ -41,10 +41,10 @@ void timeout_init(void) {
 	has_timeout = false;
 	init_done = true;
 
-	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+	LL_IWDG_EnableWriteAccess(IWDG);
 
 	// IWDG counter clock: LSI/4
-	IWDG_SetPrescaler(IWDG_Prescaler_4);
+	LL_IWDG_SetPrescaler(IWDG, LL_IWDG_PRESCALER_4);
 
 	/* Set counter reload value to obtain 12ms IWDG TimeOut.
 	 *
@@ -65,12 +65,12 @@ void timeout_init(void) {
 	 *
 	 * When LSI clock runs the slowest, the IWDG will expire every 33.17ms
 	*/
-	IWDG_SetReload(140);
+	LL_IWDG_SetReloadCounter(IWDG, 140);
 
-	IWDG_ReloadCounter();
+	LL_IWDG_ReloadCounter(IWDG);
 
 	/* Enable IWDG (the LSI oscillator will be enabled by hardware) */
-	IWDG_Enable();
+	LL_IWDG_Enable(IWDG);
 
 	chThdSleepMilliseconds(10);
 
@@ -113,19 +113,19 @@ void timeout_configure_IWDT_slowest(void) {
 
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog
-		IWDG_ReloadCounter();
+		LL_IWDG_ReloadCounter(IWDG);
 	}
 
 	// Unlock register
-	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+	LL_IWDG_EnableWriteAccess(IWDG);
 	// Update configuration
-	IWDG_SetReload(4000);
-	IWDG_SetPrescaler(IWDG_Prescaler_256);
+	LL_IWDG_SetReloadCounter(IWDG, 4000);
+	LL_IWDG_SetPrescaler(IWDG, LL_IWDG_PRESCALER_256);
 
 	// Wait for the new configuration to be taken into account
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog
-		IWDG_ReloadCounter();
+		LL_IWDG_ReloadCounter(IWDG);
 	}
 }
 
@@ -138,28 +138,28 @@ void timeout_configure_IWDT(void) {
 
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog
-		IWDG_ReloadCounter();
+		LL_IWDG_ReloadCounter(IWDG);
 	}
 
 	// Unlock register
-	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+	LL_IWDG_EnableWriteAccess(IWDG);
 	// Update configuration
-	IWDG_SetReload(140);
-	IWDG_SetPrescaler(IWDG_Prescaler_4);
+	LL_IWDG_SetReloadCounter(IWDG, 140);
+	LL_IWDG_SetPrescaler(IWDG, LL_IWDG_PRESCALER_4);
 
 	// Wait for the new configuration to be taken into account
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog
-		IWDG_ReloadCounter();
+		LL_IWDG_ReloadCounter(IWDG);
 	}
 }
 
 bool timeout_had_IWDG_reset(void) {
 	// Check if the system has resumed from IWDG reset
-	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
+	if (LL_RCC_IsActiveFlag_IWDGRST() != RESET) {
 		/* IWDGRST flag set */
 		/* Clear reset flags */
-		RCC_ClearFlag();
+		LL_RCC_ClearResetFlags();
 		return true;
 	}
 
@@ -203,7 +203,7 @@ static THD_FUNCTION(timeout_thread, arg) {
 
 		if (threads_ok == true) {
 			// Feed WDT
-			IWDG_ReloadCounter();	// must reload in <12ms
+			LL_IWDG_ReloadCounter(IWDG);	// must reload in <12ms
 		} else {
 			// not reloading the watchdog will produce a reset.
 			// This can be checked from the GUI logs as

@@ -26,18 +26,18 @@
 #define TIMER_HZ					1e7
 
 void timer_init(void) {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM5);
 	uint16_t PrescalerValue = (uint16_t) ((SYSTEM_CORE_CLOCK / 2) / TIMER_HZ) - 1;
 
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_TimeBaseStructure.TIM_Period = 0xFFFFFFFF;
-	TIM_TimeBaseStructure.TIM_Prescaler = PrescalerValue;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInit(TIM5, &TIM_TimeBaseStructure);
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	TIM_TimeBaseStructure.Autoreload = 0xFFFFFFFF;
+	TIM_TimeBaseStructure.Prescaler = PrescalerValue;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	LL_TIM_Init(TIM5, &TIM_TimeBaseStructure);
 
 	TIM5->CNT = 0;
-	TIM_Cmd(TIM5, ENABLE);
+	LL_TIM_EnableCounter(TIM5);
 }
 
 uint32_t timer_time_now(void) {
