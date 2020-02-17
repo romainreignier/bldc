@@ -19,7 +19,6 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "stm32f4xx_conf.h"
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
@@ -33,6 +32,18 @@
 #include "timeout.h"
 #include "encoder.h"
 #include "timer.h"
+
+#define USE_OLD
+//#define USE_ST_LL
+
+//#ifdef USE_OLD
+#include "stm32f4xx_conf.h"
+//#elif defined(USE_ST_LL)
+#include "stm32f4xx_ll_adc.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_dma.h"
+#include "stm32f4xx_ll_tim.h"
+//#endif
 
 // Structs
 typedef struct {
@@ -171,11 +182,6 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	utils_sys_lock_cnt();
 
 	init_done= false;
-
-	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	TIM_BDTRInitTypeDef TIM_BDTRInitStructure;
-
 	conf = configuration;
 
 	// Initialize variables
@@ -225,6 +231,11 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 
 	// Create current FIR filter
 	filter_create_fir_lowpass((float*)current_fir_coeffs, CURR_FIR_FCUT, CURR_FIR_TAPS_BITS, 1);
+
+#ifdef USE_OLD
+	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	TIM_OCInitTypeDef  TIM_OCInitStructure;
+	TIM_BDTRInitTypeDef TIM_BDTRInitStructure;
 
 	TIM_DeInit(TIM1);
 	TIM_DeInit(TIM8);
@@ -421,7 +432,219 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 
 	// Main Output Enable
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+#elif defined(USE_ST_LL)
+	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
+	LL_TIM_OC_InitTypeDef  TIM_OCInitStructure;
+	LL_TIM_BDTR_InitTypeDef TIM_BDTRInitStructure;
 
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
+	TIM1->CNT = 0;
+	TIM8->CNT = 0;
+
+	// TIM1 clock enable
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM1);
+
+	// Time Base configuration
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = SYSTEM_CORE_CLOCK / (int)switching_frequency_now;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(TIM1, &TIM_TimeBaseStructure);
+
+	// Channel 1, 2 and 3 Configuration in PWM mode
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.OCNState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.CompareValue = TIM1->ARR / 2;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
+
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH4, &TIM_OCInitStructure);
+
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_OC_EnablePreload(TIM1, LL_TIM_CHANNEL_CH4);
+
+	// Automatic Output enable, Break, dead time and lock configuration
+	TIM_BDTRInitStructure.OSSRState = LL_TIM_OSSR_ENABLE;
+	TIM_BDTRInitStructure.OSSIState = LL_TIM_OSSI_ENABLE;
+	TIM_BDTRInitStructure.LockLevel = LL_TIM_LOCKLEVEL_OFF;
+	TIM_BDTRInitStructure.DeadTime = conf_general_calculate_deadtime(HW_DEAD_TIME_NSEC, SYSTEM_CORE_CLOCK);
+	TIM_BDTRInitStructure.BreakState = LL_TIM_BREAK_DISABLE;
+	TIM_BDTRInitStructure.BreakPolarity = LL_TIM_BREAK_POLARITY_HIGH;
+	TIM_BDTRInitStructure.AutomaticOutput = LL_TIM_AUTOMATICOUTPUT_DISABLE;
+
+	LL_TIM_BDTR_Init(TIM1, &TIM_BDTRInitStructure);
+	LL_TIM_CC_EnablePreload(TIM1);
+	LL_TIM_EnableARRPreload(TIM1);
+
+	/*
+	 * ADC!
+	 */
+	LL_ADC_CommonInitTypeDef ADC_CommonInitStructure;
+	LL_DMA_InitTypeDef DMA_InitStructure;
+	LL_ADC_InitTypeDef ADC_InitStructure;
+	LL_ADC_REG_InitTypeDef ADC_REGStructure;
+
+	// Clock
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC2);
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC3);
+
+	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
+			5,
+			(stm32_dmaisr_t)mcpwm_adc_int_handler,
+			(void *)0);
+
+	// DMA for the ADC
+	DMA_InitStructure.Channel = LL_DMA_CHANNEL_0;
+	DMA_InitStructure.MemoryOrM2MDstAddress = (uint32_t)&ADC_Value;
+	DMA_InitStructure.PeriphOrM2MSrcAddress = (uint32_t)&ADC->CDR;
+	DMA_InitStructure.Direction = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
+	DMA_InitStructure.NbData = HW_ADC_CHANNELS;
+	DMA_InitStructure.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+	DMA_InitStructure.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+	DMA_InitStructure.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_HALFWORD;
+	DMA_InitStructure.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_HALFWORD;
+	DMA_InitStructure.Mode = LL_DMA_MODE_CIRCULAR;
+	DMA_InitStructure.Priority = LL_DMA_PRIORITY_HIGH;
+	DMA_InitStructure.FIFOMode = LL_DMA_FIFOMODE_DISABLE;
+	DMA_InitStructure.FIFOThreshold = LL_DMA_FIFOTHRESHOLD_1_4;
+	DMA_InitStructure.MemBurst = LL_DMA_MBURST_SINGLE;
+	DMA_InitStructure.PeriphBurst = LL_DMA_PBURST_SINGLE;
+	LL_DMA_Init(DMA2, LL_DMA_STREAM_4, &DMA_InitStructure);
+
+	// DMA2_Stream0 enable
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_4);
+
+	// Enable transfer complete interrupt
+	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_4);
+
+	// ADC Common Init
+	// Note that the ADC is running at 42MHz, which is higher than the
+	// specified 36MHz in the data sheet, but it works.
+	ADC_CommonInitStructure.Multimode = LL_ADC_MULTI_TRIPLE_REG_SIMULT;
+	ADC_CommonInitStructure.CommonClock = LL_ADC_CLOCK_SYNC_PCLK_DIV2;
+	// TODO, LL_ADC_MULTI_REG_DMA_UNLMT_1 or LL_ADC_MULTI_REG_DMA_LIMIT_1 ?
+	ADC_CommonInitStructure.MultiDMATransfer = LL_ADC_MULTI_REG_DMA_UNLMT_1;
+	ADC_CommonInitStructure.MultiTwoSamplingDelay = LL_ADC_MULTI_TWOSMP_DELAY_5CYCLES;
+	LL_ADC_CommonInit(__LL_ADC_COMMON_INSTANCE(ADC1), &ADC_CommonInitStructure);
+
+	// Channel-specific settings
+	ADC_InitStructure.Resolution = LL_ADC_RESOLUTION_12B;
+	ADC_InitStructure.SequencersScanMode = LL_ADC_SEQ_SCAN_ENABLE;
+	ADC_InitStructure.DataAlignment = LL_ADC_DATA_ALIGN_RIGHT;
+	LL_ADC_Init(ADC1, &ADC_InitStructure);
+	LL_ADC_Init(ADC2, &ADC_InitStructure);
+	LL_ADC_Init(ADC3, &ADC_InitStructure);
+
+	ADC_REGStructure.TriggerSource = LL_ADC_REG_TRIG_EXT_TIM8_CH1;
+	ADC_REGStructure.ContinuousMode = LL_ADC_REG_CONV_SINGLE;
+	ADC_REGStructure.SequencerLength = HW_ADC_NBR_CONV_LL;
+	ADC_REGStructure.SequencerDiscont = LL_ADC_REG_SEQ_DISCONT_DISABLE;
+	ADC_REGStructure.DMATransfer = LL_ADC_REG_DMA_TRANSFER_UNLIMITED; // or LL_ADC_REG_DMA_TRANSFER_LIMITED
+	LL_ADC_REG_Init(ADC1, &ADC_REGStructure);
+	ADC_REGStructure.TriggerSource = LL_ADC_REG_TRIG_SOFTWARE;
+	LL_ADC_REG_Init(ADC2, &ADC_REGStructure);
+	LL_ADC_REG_Init(ADC3, &ADC_REGStructure);
+
+	LL_ADC_REG_StartConversionExtTrig(ADC1, LL_ADC_REG_TRIG_EXT_FALLING);
+
+	// Enable Vrefint channel
+	LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_PATH_INTERNAL_VREFINT | LL_ADC_PATH_INTERNAL_TEMPSENSOR);
+
+	// Enable DMA request after last transfer (Multi-ADC mode)
+	//LL_ADC_SetMultiDMATransfer(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_MULTI_REG_DMA_UNLMT_1);
+	SET_BIT(ADC->CCR, ADC_CCR_DDS);
+
+	// Injected channels for current measurement at end of cycle
+	LL_ADC_INJ_SetTriggerSource(ADC1, LL_ADC_INJ_TRIG_EXT_TIM1_CH4);
+	LL_ADC_INJ_SetTriggerSource(ADC2, LL_ADC_INJ_TRIG_EXT_TIM8_CH2);
+#ifdef HW_HAS_3_SHUNTS
+	LL_ADC_INJ_SetTriggerSource(ADC3, LL_ADC_INJ_TRIG_EXT_TIM8_CH3);
+#endif
+	LL_ADC_INJ_StartConversionExtTrig(ADC1, LL_ADC_INJ_TRIG_EXT_FALLING);
+	LL_ADC_INJ_StartConversionExtTrig(ADC2, LL_ADC_INJ_TRIG_EXT_FALLING);
+#ifdef HW_HAS_3_SHUNTS
+	LL_ADC_INJ_StartConversionExtTrig(ADC3, LL_ADC_INJ_TRIG_EXT_FALLING);
+#endif
+	LL_ADC_INJ_SetSequencerLength(ADC1, HW_ADC_INJ_CHANNELS_LL);
+	LL_ADC_INJ_SetSequencerLength(ADC2, HW_ADC_INJ_CHANNELS_LL);
+#ifdef HW_HAS_3_SHUNTS
+	LL_ADC_INJ_SetSequencerLength(ADC3, HW_ADC_INJ_CHANNELS_LL);
+#endif
+
+	hw_setup_adc_channels();
+
+	// Interrupt
+	LL_ADC_EnableIT_JEOS(ADC1);
+	nvicEnableVector(ADC_IRQn, 6);
+
+	// Enable ADC1
+	LL_ADC_Enable(ADC1);
+
+	// Enable ADC2
+	LL_ADC_Enable(ADC2);
+
+	// Enable ADC3
+	LL_ADC_Enable(ADC3);
+
+	// ------------- Timer8 for ADC sampling ------------- //
+	// Time Base configuration
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM8);
+
+	TIM_TimeBaseStructure.Prescaler = 0;
+	TIM_TimeBaseStructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	TIM_TimeBaseStructure.Autoreload = 0xFFFF;
+	TIM_TimeBaseStructure.ClockDivision = 0;
+	TIM_TimeBaseStructure.RepetitionCounter = 0;
+	LL_TIM_Init(TIM8, &TIM_TimeBaseStructure);
+
+	TIM_OCInitStructure.OCMode = LL_TIM_OCMODE_PWM1;
+	TIM_OCInitStructure.OCState = LL_TIM_OCSTATE_ENABLE;
+	TIM_OCInitStructure.OCNState = LL_TIM_OCSTATE_ENABLE; // TODO disable ?
+	TIM_OCInitStructure.CompareValue = 500;
+	TIM_OCInitStructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+	TIM_OCInitStructure.OCIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	TIM_OCInitStructure.OCNIdleState = LL_TIM_OCIDLESTATE_HIGH;
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH1, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH1);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH2, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH2);
+	LL_TIM_OC_Init(TIM8, LL_TIM_CHANNEL_CH3, &TIM_OCInitStructure);
+	LL_TIM_OC_EnablePreload(TIM8, LL_TIM_CHANNEL_CH3);
+
+	LL_TIM_EnableARRPreload(TIM8);
+	LL_TIM_CC_EnablePreload(TIM8);
+
+	// PWM outputs have to be enabled in order to trigger ADC on CCx
+	LL_TIM_EnableAllOutputs(TIM8);
+
+	// TIM1 Master and TIM8 slave
+	LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_UPDATE);
+	LL_TIM_EnableMasterSlaveMode(TIM1);
+	LL_TIM_SetTriggerInput(TIM8, LL_TIM_TS_ITR0);
+	LL_TIM_SetSlaveMode(TIM8, LL_TIM_SLAVEMODE_RESET);
+
+	// Enable TIM1 and TIM8
+	LL_TIM_EnableCounter(TIM1);
+	LL_TIM_EnableCounter(TIM8);
+
+	// Main Output Enable
+	LL_TIM_EnableAllOutputs(TIM1);
+#endif
 	// ADC sampling locations
 	stop_pwm_hw();
 	mc_timer_struct timer_tmp;
@@ -471,10 +694,17 @@ void mcpwm_deinit(void) {
 		chThdSleepMilliseconds(1);
 	}
 
+#ifdef USE_OLD
 	TIM_DeInit(TIM1);
 	TIM_DeInit(TIM8);
 	ADC_DeInit();
 	DMA_DeInit(DMA2_Stream4);
+#elif defined(USE_ST_LL)
+	LL_TIM_DeInit(TIM1);
+	LL_TIM_DeInit(TIM8);
+	LL_ADC_CommonDeInit(__LL_ADC_COMMON_INSTANCE(ADC1));
+	LL_DMA_DeInit(DMA2, LL_DMA_STREAM_4);
+#endif
 	nvicDisableVector(ADC_IRQn);
 	dmaStreamFree(STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 4)));
 }
@@ -912,6 +1142,7 @@ static void stop_pwm_hw(void) {
 	DISABLE_BR();
 #endif
 
+#ifdef USE_OLD
 	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
 	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
 	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
@@ -925,6 +1156,21 @@ static void stop_pwm_hw(void) {
 	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
 
 	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+#elif defined(USE_ST_LL)
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+	LL_TIM_GenerateEvent_COM(TIM1);
+#endif
 
 	set_switching_frequency(conf->m_bldc_f_sw_max);
 }
@@ -940,6 +1186,7 @@ static void full_brake_hw(void) {
 	ENABLE_BR();
 #endif
 
+#ifdef USE_OLD
 	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_InActive);
 	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
 	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
@@ -953,6 +1200,21 @@ static void full_brake_hw(void) {
 	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
 
 	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+#elif defined(USE_ST_LL)
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+	LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+	LL_TIM_GenerateEvent_COM(TIM1);
+#endif
 
 	set_switching_frequency(conf->m_bldc_f_sw_max);
 }
@@ -1457,6 +1719,7 @@ static THD_FUNCTION(timer_thread, arg) {
 void mcpwm_adc_inj_int_handler(void) {
 	uint32_t t_start = timer_time_now();
 
+#ifdef USE_OLD
 	int curr0 = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
 	int curr1 = ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1);
 
@@ -1465,6 +1728,17 @@ void mcpwm_adc_inj_int_handler(void) {
 
 #ifdef HW_HAS_3_SHUNTS
 	int curr2 = ADC_GetInjectedConversionValue(ADC3, ADC_InjectedChannel_1);
+#endif
+#elif defined(USE_ST_LL)
+	int curr0 = LL_ADC_INJ_ReadConversionData12(ADC1, LL_ADC_INJ_RANK_1);
+	int curr1 = LL_ADC_INJ_ReadConversionData12(ADC2, LL_ADC_INJ_RANK_1);
+
+	int curr0_2 = LL_ADC_INJ_ReadConversionData12(ADC2, LL_ADC_INJ_RANK_2);
+	int curr1_2 = LL_ADC_INJ_ReadConversionData12(ADC1, LL_ADC_INJ_RANK_2);
+
+#ifdef HW_HAS_3_SHUNTS
+	int curr2 = LL_ADC_INJ_ReadConversionData12(ADC3, LL_ADC_INJ_RANK_1);
+#endif
 #endif
 
 #ifdef INVERTED_SHUNT_POLARITY
@@ -1718,7 +1992,11 @@ void mcpwm_adc_inj_int_handler(void) {
 			comm_step = detect_step + 1;
 
 			set_next_comm_step(comm_step);
+#ifdef USE_OLD
 			TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+#elif defined(USE_ST_LL)
+			LL_TIM_GenerateEvent_COM(TIM1);
+#endif
 		}
 	}
 
@@ -2607,7 +2885,11 @@ static void commutate(int steps) {
 		set_next_comm_step(comm_step);
 	}
 
+#ifdef USE_OLD
 	TIM_GenerateEvent(TIM1, TIM_EventSource_COM);
+#elif defined(USE_ST_LL)
+	LL_TIM_GenerateEvent_COM(TIM1);
+#endif
 	has_commutated = 1;
 
 	mc_timer_struct timer_tmp;
@@ -2679,6 +2961,7 @@ static void set_switching_frequency(float frequency) {
 }
 
 static void set_next_comm_step(int next_step) {
+#ifdef USE_OLD
 	if (conf->motor_type == MOTOR_TYPE_DC) {
 		// 0
 		TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_Inactive);
@@ -3005,4 +3288,537 @@ static void set_next_comm_step(int next_step) {
 		TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
 		TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
 	}
+
+#elif defined(USE_ST_LL)
+	if (conf->motor_type == MOTOR_TYPE_DC) {
+		// 0
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+		if (direction) {
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+		} else {
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+		}
+
+		return;
+	}
+
+	uint16_t positive_oc_mode = LL_TIM_OCMODE_PWM1;
+	uint16_t negative_oc_mode = LL_TIM_OCMODE_FORCED_INACTIVE;
+
+	uint16_t positive_highside = 1;
+	uint16_t positive_lowside = 1;
+
+	uint16_t negative_highside = 1;
+	uint16_t negative_lowside = 1;
+
+	if (!IS_DETECTING()) {
+		switch (conf->pwm_mode) {
+		case PWM_MODE_NONSYNCHRONOUS_HISW:
+			positive_lowside = 0;
+			break;
+
+		case PWM_MODE_SYNCHRONOUS:
+			break;
+
+		case PWM_MODE_BIPOLAR:
+			negative_oc_mode = LL_TIM_OCMODE_PWM2;
+			break;
+		}
+	}
+
+	if (next_step == 1) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR1();
+			ENABLE_BR2();
+			ENABLE_BR3();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_2, positive_highside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_2, positive_lowside);
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_3, negative_highside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_3, negative_lowside);
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR1();
+			ENABLE_BR3();
+			ENABLE_BR2();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_3, positive_highside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_3, positive_lowside);
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_2, negative_highside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_2, negative_lowside);
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+		}
+	} else if (next_step == 2) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR2();
+			ENABLE_BR1();
+			ENABLE_BR3();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_1, positive_highside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_1, positive_lowside);
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR3();
+			ENABLE_BR1();
+			ENABLE_BR2();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+		}
+	} else if (next_step == 3) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR3();
+			ENABLE_BR1();
+			ENABLE_BR2();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR2();
+			ENABLE_BR1();
+			ENABLE_BR3();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+		}
+	} else if (next_step == 4) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR1();
+			ENABLE_BR3();
+			ENABLE_BR2();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR1();
+			ENABLE_BR2();
+			ENABLE_BR3();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+		}
+	} else if (next_step == 5) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR2();
+			ENABLE_BR3();
+			ENABLE_BR1();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			//TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR3();
+			ENABLE_BR2();
+			ENABLE_BR1();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+		}
+	} else if (next_step == 6) {
+		if (direction) {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR3();
+			ENABLE_BR2();
+			ENABLE_BR1();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+		} else {
+#ifdef HW_HAS_DRV8313
+			DISABLE_BR2();
+			ENABLE_BR3();
+			ENABLE_BR1();
+#endif
+			// 0
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+			LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+			// +
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
+
+			// -
+			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
+		}
+	} else {
+#ifdef HW_HAS_DRV8313
+		DISABLE_BR1();
+		DISABLE_BR2();
+		DISABLE_BR3();
+#endif
+		// Invalid phase.. stop PWM!
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+		LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_FORCED_INACTIVE);
+		LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+		LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+	}
+#endif
 }
