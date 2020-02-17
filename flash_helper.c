@@ -27,6 +27,7 @@
 #include "hw.h"
 #include "crc.h"
 #include <string.h>
+#include "stm32f4xx_flash.h"
 
 /*
  * Defines

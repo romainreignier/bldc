@@ -279,7 +279,7 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	/*
 	 * ADC!
 	 */
-	LEGACY_ADC_CommonInitTypeDef ADC_CommonInitStructure;
+	LL_ADC_CommonInitTypeDef ADC_CommonInitStructure;
 	LL_DMA_InitTypeDef DMA_InitStructure;
 	LEGACY_ADC_InitTypeDef ADC_InitStructure;
 
@@ -357,10 +357,10 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 #ifdef HW_HAS_3_SHUNTS
 	LL_ADC_INJ_StartConversionExtTrig(ADC3, LL_ADC_INJ_TRIG_EXT_FALLING);
 #endif
-	ADC_InjectedSequencerLengthConfig(ADC1, HW_ADC_INJ_CHANNELS);
-	ADC_InjectedSequencerLengthConfig(ADC2, HW_ADC_INJ_CHANNELS);
+	LL_ADC_INJ_SetSequencerLength(ADC1, HW_ADC_INJ_CHANNELS);
+	LL_ADC_INJ_SetSequencerLength(ADC2, HW_ADC_INJ_CHANNELS);
 #ifdef HW_HAS_3_SHUNTS
-	ADC_InjectedSequencerLengthConfig(ADC3, HW_ADC_INJ_CHANNELS);
+	LL_ADC_INJ_SetSequencerLength(ADC3, HW_ADC_INJ_CHANNELS);
 #endif
 
 	hw_setup_adc_channels();
@@ -2713,16 +2713,16 @@ static void set_next_comm_step(int next_step) {
 	uint16_t positive_oc_mode = LL_TIM_OCMODE_PWM1;
 	uint16_t negative_oc_mode = LL_TIM_OCMODE_INACTIVE;
 
-	uint16_t positive_highside = TIM_CCx_Enable;
-	uint16_t positive_lowside = TIM_CCxN_Enable;
+	uint16_t positive_highside = 1;
+	uint16_t positive_lowside = 1;
 
-	uint16_t negative_highside = TIM_CCx_Enable;
-	uint16_t negative_lowside = TIM_CCxN_Enable;
+	uint16_t negative_highside = 1;
+	uint16_t negative_lowside = 1;
 
 	if (!IS_DETECTING()) {
 		switch (conf->pwm_mode) {
 		case PWM_MODE_NONSYNCHRONOUS_HISW:
-			positive_lowside = TIM_CCxN_Disable;
+			positive_lowside = 0;
 			break;
 
 		case PWM_MODE_SYNCHRONOUS:
@@ -2748,13 +2748,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR1();
@@ -2768,13 +2784,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 		}
 	} else if (next_step == 2) {
 		if (direction) {
@@ -2790,13 +2822,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR3();
@@ -2810,13 +2858,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 		}
 	} else if (next_step == 3) {
 		if (direction) {
@@ -2832,13 +2896,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR2();
@@ -2852,13 +2932,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 		}
 	} else if (next_step == 4) {
 		if (direction) {
@@ -2874,13 +2970,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR1();
@@ -2894,13 +3006,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 		}
 	} else if (next_step == 5) {
 		if (direction) {
@@ -2916,13 +3044,31 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
+			//TIM_CCxCmd(TIM1, TIM_Channel_1, negative_highside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			//TIM_CCxNCmd(TIM1, TIM_Channel_1, negative_lowside);
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR3();
@@ -2936,13 +3082,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 		}
 	} else if (next_step == 6) {
 		if (direction) {
@@ -2958,13 +3120,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH2, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 		} else {
 #ifdef HW_HAS_DRV8313
 			DISABLE_BR2();
@@ -2978,13 +3156,29 @@ static void set_next_comm_step(int next_step) {
 
 			// +
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, positive_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH3, positive_lowside);
+			if(positive_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+			}
+			if(positive_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+			}
 
 			// -
 			LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, negative_oc_mode);
-			TIM_CCxCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_highside);
-			TIM_CCxNCmd(TIM1, LL_TIM_CHANNEL_CH1, negative_lowside);
+			if(negative_highside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+			}
+			if(negative_lowside) {
+				LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			} else {
+				LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+			}
 		}
 	} else {
 #ifdef HW_HAS_DRV8313

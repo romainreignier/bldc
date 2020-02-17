@@ -46,6 +46,7 @@
 #include "bm_if.h"
 #endif
 #include "minilzo.h"
+#include "stm32f4xx_flash.h"
 
 #include <math.h>
 #include <string.h>

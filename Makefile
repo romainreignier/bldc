@@ -157,6 +157,7 @@ CSRC = $(ALLCSRC) \
        i2c_bb.c \
        virtual_motor.c \
        shutdown.c \
+       stdperiph_stm32f4/src/stm32f4xx_flash.c \
        $(HWSRC) \
        $(APPSRC) \
        $(NRFSRC) \
@@ -182,6 +183,7 @@ INCDIR = $(ALLINC) \
          $(CHIBIOS)/os/hal/lib/streams \
          mcconf \
          appconf \
+         stdperiph_stm32f4/inc \
          $(HWINC) \
          $(APPINC) \
          $(NRFINC) \
@@ -240,7 +242,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DUSE_FULL_LL_DRIVER
+UDEFS = -DUSE_FULL_LL_DRIVER -DSTM32F405xx
 
 # Define ASM defines here
 UADEFS =

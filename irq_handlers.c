@@ -34,11 +34,11 @@ CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 }
 
 CH_IRQ_HANDLER(HW_ENC_EXTI_ISR_VEC) {
-	if (EXTI_GetITStatus(HW_ENC_EXTI_LINE) != RESET) {
+	if (LL_EXTI_IsActiveFlag_0_31(HW_ENC_EXTI_LINE) != RESET) {
 		encoder_reset();
 
 		// Clear the EXTI line pending bit
-		EXTI_ClearITPendingBit(HW_ENC_EXTI_LINE);
+		LL_EXTI_ClearFlag_0_31(HW_ENC_EXTI_LINE);
 	}
 }
 
@@ -67,7 +67,6 @@ CH_IRQ_HANDLER(PVD_IRQHandler) {
 		mc_interface_fault_stop(FAULT_CODE_MCU_UNDER_VOLTAGE);
 
 		// Clear the PVD pending bit
-		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_16);
 		LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_16);
 	}
 }

@@ -363,7 +363,7 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	LL_TIM_EnableARRPreload(TIM1);
 
 	// ADC
-	LEGACY_ADC_CommonInitTypeDef ADC_CommonInitStructure;
+	LL_ADC_CommonInitTypeDef ADC_CommonInitStructure;
 	LL_DMA_InitTypeDef DMA_InitStructure;
 	LEGACY_ADC_InitTypeDef ADC_InitStructure;
 

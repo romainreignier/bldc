@@ -71,6 +71,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_flash.h"
 
+#ifdef  USE_FULL_ASSERT
+#include "stm32_assert.h"
+#else
+#define assert_param(expr) ((void)0U)
+#endif
+
 #ifndef FLASH_CR_MER1
 #define FLASH_CR_MER1                        FLASH_CR_MER
 #endif
