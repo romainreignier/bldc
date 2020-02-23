@@ -184,17 +184,17 @@ void mc_interface_init(mc_configuration *configuration) {
 	case SENSOR_PORT_MODE_AS5047_SPI:
 		encoder_init_as5047p_spi();
 		break;
-
+#if HAS_AD2S1205
 	case SENSOR_PORT_MODE_AD2S1205:
 		encoder_init_ad2s1205_spi();
 		break;
-
+#endif
 	case SENSOR_PORT_MODE_SINCOS:
 		encoder_init_sincos(m_conf.foc_encoder_sin_gain, m_conf.foc_encoder_sin_offset,
 							m_conf.foc_encoder_cos_gain, m_conf.foc_encoder_cos_offset,
 							m_conf.foc_encoder_sincos_filter_constant);
 		break;
-
+#if HAS_TS5700N8501
 	case SENSOR_PORT_MODE_TS5700N8501:
 	case SENSOR_PORT_MODE_TS5700N8501_MULTITURN:
 		conf_general_read_app_configuration(&m_tmp_appconf);
@@ -207,7 +207,7 @@ void mc_interface_init(mc_configuration *configuration) {
 		}
 		encoder_init_ts5700n8501();
 		break;
-
+#endif
 	default:
 		break;
 	}
@@ -251,17 +251,17 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 		case SENSOR_PORT_MODE_AS5047_SPI:
 			encoder_init_as5047p_spi();
 			break;
-
+#if HAS_AD2S1205
 		case SENSOR_PORT_MODE_AD2S1205:
 			encoder_init_ad2s1205_spi();
 			break;
-
+#endif
 		case SENSOR_PORT_MODE_SINCOS:
 			encoder_init_sincos(m_conf.foc_encoder_sin_gain, m_conf.foc_encoder_sin_offset,
 								m_conf.foc_encoder_cos_gain, m_conf.foc_encoder_cos_offset,
 								m_conf.foc_encoder_sincos_filter_constant);
 			break;
-
+#if HAS_TS5700N8501
 		case SENSOR_PORT_MODE_TS5700N8501:
 		case SENSOR_PORT_MODE_TS5700N8501_MULTITURN: {
 			m_tmp_appconf = *app_get_configuration();
@@ -275,7 +275,7 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 			}
 			encoder_init_ts5700n8501();
 		} break;
-
+#endif
 		default:
 			break;
 		}
@@ -2061,6 +2061,7 @@ static THD_FUNCTION(timer_thread, arg) {
 				mc_interface_fault_stop(FAULT_CODE_ENCODER_SINCOS_ABOVE_MAX_AMPLITUDE);
 		}
 
+#if HAS_AD2S1205
 		if(m_conf.motor_type == MOTOR_TYPE_FOC &&
 			m_conf.foc_sensor_mode == FOC_SENSOR_MODE_ENCODER &&
 			m_conf.m_sensor_port_mode == SENSOR_PORT_MODE_AD2S1205) {
@@ -2071,6 +2072,7 @@ static THD_FUNCTION(timer_thread, arg) {
 			if (encoder_resolver_loss_of_signal_error_rate() > 0.04)
 				mc_interface_fault_stop(FAULT_CODE_RESOLVER_LOS);
 		}
+#endif
 		// TODO: Implement for BLDC and GPDRIVE
 		if(m_conf.motor_type == MOTOR_TYPE_FOC) {
 			int curr0_offset;

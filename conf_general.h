@@ -222,11 +222,19 @@
 #endif
 
 #ifndef HAS_I2C
-#define HAS_I2C			1
+#define HAS_I2C				1
 #endif
 
 #ifndef HAS_ICU
-#define HAS_ICU		1
+#define HAS_ICU				1
+#endif
+
+#ifndef HAS_AD2S1205
+#define HAS_AD2S1205		1
+#endif
+
+#ifndef HAS_TS5700N8501
+#define HAS_TS5700N8501		1
 #endif
 
 #ifndef ENABLE_APP_PPM

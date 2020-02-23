@@ -24,7 +24,7 @@
 #include "chtypes.h"
 #include "chsystypes.h"
 
-#define MAX_THREADS_MONITOR		10
+#define MAX_THREADS_MONITOR		5 //10
 #define MIN_THREAD_ITERATIONS	1
 
 typedef enum {

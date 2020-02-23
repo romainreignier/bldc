@@ -82,12 +82,6 @@ static float last_enc_angle = 0.0;
 static uint32_t spi_val = 0;
 static uint32_t spi_error_cnt = 0;
 static float spi_error_rate = 0.0;
-static float resolver_loss_of_tracking_error_rate = 0.0;
-static float resolver_degradation_of_signal_error_rate = 0.0;
-static float resolver_loss_of_signal_error_rate = 0.0;
-static uint32_t resolver_loss_of_tracking_error_cnt = 0;
-static uint32_t resolver_degradation_of_signal_error_cnt = 0;
-static uint32_t resolver_loss_of_signal_error_cnt = 0;
 
 static float sin_gain = 0.0;
 static float sin_offset = 0.0;
@@ -99,13 +93,23 @@ static uint32_t sincos_signal_above_max_error_cnt = 0;
 static float sincos_signal_low_error_rate = 0.0;
 static float sincos_signal_above_max_error_rate = 0.0;
 
+#if HAS_AD2S1205
+static float resolver_loss_of_tracking_error_rate = 0.0;
+static float resolver_degradation_of_signal_error_rate = 0.0;
+static float resolver_loss_of_signal_error_rate = 0.0;
+static uint32_t resolver_loss_of_tracking_error_cnt = 0;
+static uint32_t resolver_degradation_of_signal_error_cnt = 0;
+static uint32_t resolver_loss_of_signal_error_cnt = 0;
+
 static SerialConfig TS5700N8501_uart_cfg = {
 		2500000,
 		0,
 		USART_CR2_LINEN,
 		0
 };
+#endif
 
+#if HAS_TS5700N8501
 static THD_FUNCTION(ts5700n8501_thread, arg);
 static THD_WORKING_AREA(ts5700n8501_thread_wa, 512);
 static volatile bool ts5700n8501_stop_now = true;
@@ -113,13 +117,16 @@ static volatile bool ts5700n8501_is_running = false;
 static volatile uint8_t ts5700n8501_raw_status[8] = {0};
 static volatile bool ts5700n8501_reset_errors = false;
 static volatile bool ts5700n8501_reset_multiturn = false;
+#endif
 
 // Private functions
 static void spi_transfer(uint16_t *in_buf, const uint16_t *out_buf, int length);
 static void spi_begin(void);
 static void spi_end(void);
 static void spi_delay(void);
+#if HAS_TS5700N8501
 static void TS5700N8501_send_byte(uint8_t b);
+#endif
 
 uint32_t encoder_spi_get_error_cnt(void) {
 	return spi_error_cnt;
@@ -133,6 +140,7 @@ float encoder_spi_get_error_rate(void) {
 	return spi_error_rate;
 }
 
+#if HAS_AD2S1205
 float encoder_resolver_loss_of_tracking_error_rate(void) {
 	return resolver_loss_of_tracking_error_rate;
 }
@@ -156,6 +164,7 @@ uint32_t encoder_resolver_degradation_of_signal_error_cnt(void) {
 uint32_t encoder_resolver_loss_of_signal_error_cnt(void) {
 	return resolver_loss_of_signal_error_cnt;
 }
+#endif
 
 uint32_t encoder_sincos_get_signal_below_min_error_cnt(void) {
 	return sincos_signal_below_min_error_cnt;
@@ -173,6 +182,7 @@ float encoder_sincos_get_signal_above_max_error_rate(void) {
 	return sincos_signal_above_max_error_rate;
 }
 
+#if HAS_TS5700N8501
 uint8_t* encoder_ts5700n8501_get_raw_status(void) {
 	return (uint8_t*)ts5700n8501_raw_status;
 }
@@ -189,6 +199,7 @@ void encoder_ts57n8501_reset_errors(void) {
 void encoder_ts57n8501_reset_multiturn(void) {
 	ts5700n8501_reset_multiturn = true;
 }
+#endif
 
 void encoder_deinit(void) {
 	nvicDisableVector(HW_ENC_EXTI_CH);
@@ -203,6 +214,7 @@ void encoder_deinit(void) {
 	palSetPadMode(HW_HALL_ENC_GPIO1, HW_HALL_ENC_PIN1, PAL_MODE_INPUT_PULLUP);
 	palSetPadMode(HW_HALL_ENC_GPIO2, HW_HALL_ENC_PIN2, PAL_MODE_INPUT_PULLUP);
 
+#if HAS_TS5700N8501
 	if (mode == ENCODER_MODE_TS5700N8501) {
 		ts5700n8501_stop_now = true;
 		while (ts5700n8501_is_running) {
@@ -215,6 +227,7 @@ void encoder_deinit(void) {
 		palSetPadMode(HW_ADC_EXT_GPIO, HW_ADC_EXT_PIN, PAL_MODE_INPUT_ANALOG);
 #endif
 	}
+#endif
 
 	index_found = false;
 	mode = ENCODER_MODE_NONE;
@@ -309,6 +322,7 @@ void encoder_init_as5047p_spi(void) {
 	spi_error_rate = 0.0;
 }
 
+#if HAS_AD2S1205
 void encoder_init_ad2s1205_spi(void) {
 	LL_TIM_InitTypeDef  TIM_TimeBaseStructure;
 
@@ -361,6 +375,7 @@ void encoder_init_ad2s1205_spi(void) {
 	mode = RESOLVER_MODE_AD2S1205;
 	index_found = true;
 }
+#endif
 
 void encoder_init_sincos(float s_gain, float s_offset,
 						 float c_gain, float c_offset, float filter_constant) {
@@ -386,6 +401,7 @@ void encoder_init_sincos(float s_gain, float s_offset,
 #endif
 }
 
+#if HAS_TS5700N8501
 void encoder_init_ts5700n8501(void) {
 	mode = ENCODER_MODE_TS5700N8501;
 	index_found = true;
@@ -397,6 +413,7 @@ void encoder_init_ts5700n8501(void) {
 	chThdCreateStatic(ts5700n8501_thread_wa, sizeof(ts5700n8501_thread_wa),
 			NORMALPRIO - 10, ts5700n8501_thread, NULL);
 }
+#endif
 
 bool encoder_is_configured(void) {
 	return mode != ENCODER_MODE_NONE;
@@ -465,6 +482,7 @@ float encoder_read_deg(void) {
  * Note: This is not a good solution and needs a proper implementation later...
  */
 float encoder_read_deg_multiturn(void) {
+#if HAS_TS5700N8501
 	if (mode == ENCODER_MODE_TS5700N8501) {
 		encoder_ts57n8501_get_abm();
 		float ts_mt = (float)encoder_ts57n8501_get_abm();
@@ -477,6 +495,9 @@ float encoder_read_deg_multiturn(void) {
 
 		return encoder_read_deg() / 10000.0 + (360 * ts_mt) / 10000.0;
 	} else {
+#else
+	{
+#endif
 		return encoder_read_deg();
 	}
 }
@@ -547,6 +568,7 @@ void encoder_tim_isr(void) {
 		}		
 	}
 
+#if HAS_AD2S1205
 	if(mode == RESOLVER_MODE_AD2S1205) {
 		// SAMPLE signal should have been be asserted in sync with ADC sampling
 #ifdef AD2S1205_RDVEL_GPIO
@@ -609,6 +631,7 @@ void encoder_tim_isr(void) {
 			last_enc_angle = ((float)pos * 360.0) / 4096.0;
 		}
 	}
+#endif
 }
 
 /**
@@ -689,6 +712,7 @@ static void spi_delay(void) {
 	__NOP();
 }
 
+#if HAS_TS5700N8501
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
@@ -824,4 +848,5 @@ static THD_FUNCTION(ts5700n8501_thread, arg) {
 		}
 	}
 }
+#endif
 

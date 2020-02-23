@@ -47,7 +47,7 @@
 
 // Settings
 #define FAULT_VEC_LEN						8 // 25
-#define CALLBACK_LEN						40
+#define CALLBACK_LEN						6 // 40 | I have counted 23 used at all. Reduced it when almost everything is disabled
 
 // Private types
 typedef struct _terminal_callback_struct {
@@ -102,8 +102,8 @@ void terminal_process_string(char *str) {
 		commands_printf("Latest sample ADC duration: %.4f ms\n", (double)(mc_interface_get_last_sample_adc_isr_duration() * 1000.0));
 	} else if (strcmp(argv[0], "kv") == 0) {
 		commands_printf("Calculated KV: %.2f rpm/volt\n", (double)mcpwm_get_kv_filtered());
-	} else if (strcmp(argv[0], "mem") == 0) {
 #if CH_CFG_USE_HEAP
+	} else if (strcmp(argv[0], "mem") == 0) {
 		size_t n, size, largest;
 		n = chHeapStatus(NULL, &size, &largest);
 		commands_printf("core free memory : %u bytes", chCoreGetStatusX());
@@ -111,8 +111,8 @@ void terminal_process_string(char *str) {
 		commands_printf("heap free total  : %u bytes", size);
 		commands_printf("heap free largest: %u bytes\n", largest);
 #endif
-	} else if (strcmp(argv[0], "threads") == 0) {
 #if CH_DBG_ENABLE_STACK_CHECK
+	} else if (strcmp(argv[0], "threads") == 0) {
 		thread_t *tp;
 		static const char *states[] = {CH_STATE_NAMES};
 		commands_printf("    addr    stack prio refs     state           name time    ");
@@ -254,8 +254,8 @@ void terminal_process_string(char *str) {
 		commands_printf("Cycle int limit: %.2f", (double)rpm_dep.cycle_int_limit);
 		commands_printf("Cycle int limit running: %.2f", (double)rpm_dep.cycle_int_limit_running);
 		commands_printf("Cycle int limit max: %.2f\n", (double)rpm_dep.cycle_int_limit_max);
-	} else if (strcmp(argv[0], "can_devs") == 0) {
 #if CAN_ENABLE
+	} else if (strcmp(argv[0], "can_devs") == 0) {
 		commands_printf("CAN devices seen on the bus the past second:\n");
 		for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 			can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -269,8 +269,6 @@ void terminal_process_string(char *str) {
 				commands_printf("Duty               : %.2f\n", (double)msg->duty);
 			}
 		}
-#else
-		commands_printf("CAN not enabled on this device.\n");
 #endif
 	} else if (strcmp(argv[0], "foc_encoder_detect") == 0) {
 		if (argc == 2) {
@@ -475,8 +473,6 @@ void terminal_process_string(char *str) {
 #if COMM_USE_USB
 		commands_printf("USB config events: %d", comm_usb_serial_configured_cnt());
 		commands_printf("USB write timeouts: %u", comm_usb_get_write_timeout_cnt());
-#else
-		commands_printf("USB not enabled on hardware.");
 #endif
 
 		commands_printf(" ");
@@ -512,11 +508,11 @@ void terminal_process_string(char *str) {
 		} else {
 			commands_printf("This command requires two arguments.\n");
 		}
+#if HAS_NRF
 	} else if (strcmp(argv[0], "nrf_ext_set_enabled") == 0) {
 		if (argc == 2) {
 			int enabled = -1;
 			sscanf(argv[1], "%d", &enabled);
-#if HAS_NRF
 			if (enabled >= 0) {
 				uint8_t buffer[2];
 				buffer[0] = COMM_EXT_NRF_SET_ENABLED;
@@ -525,12 +521,10 @@ void terminal_process_string(char *str) {
 			} else {
 				commands_printf("Invalid argument(s).\n");
 			}
-#else
-			commands_printf("This hardware does not have NRF.\n");
-#endif
 		} else {
 			commands_printf("This command requires one argument.\n");
 		}
+#endif
 	} else if (strcmp(argv[0], "foc_sensors_detect_apply") == 0) {
 		if (argc == 2) {
 			float current = -1.0;
@@ -717,6 +711,7 @@ void terminal_process_string(char *str) {
 				encoder_spi_get_error_cnt(),
 				(double)encoder_spi_get_error_rate() * (double)100.0);
 
+#if HAS_TS5700N8501
 			if (mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_TS5700N8501 ||
 					mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_TS5700N8501_MULTITURN) {
 				char sf[9];
@@ -725,6 +720,7 @@ void terminal_process_string(char *str) {
 				utils_byte_to_binary(encoder_ts5700n8501_get_raw_status()[7], almc);
 				commands_printf("TS5700N8501 ABM: %d, SF: %s, ALMC: %s\n", encoder_ts57n8501_get_abm(), sf, almc);
 			}
+#endif
 		}
 
 		if (mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_SINCOS) {
@@ -737,6 +733,7 @@ void terminal_process_string(char *str) {
 					(double)encoder_sincos_get_signal_above_max_error_rate() * (double)100.0);
 		}
 
+#if HAS_AD2S1205
 		if (mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_AD2S1205) {
 			commands_printf("Resolver Loss Of Tracking (>5%c error): errors: %d, error rate: %.3f %%", 0xB0,
 				encoder_resolver_loss_of_tracking_error_cnt(),
@@ -748,12 +745,15 @@ void terminal_process_string(char *str) {
 				encoder_resolver_loss_of_signal_error_cnt(),
 				(double)encoder_resolver_loss_of_signal_error_rate() * (double)100.0);
 		}
+#endif
+#if HAS_TS5700N8501
 	} else if (strcmp(argv[0], "encoder_clear_errors") == 0) {
 		encoder_ts57n8501_reset_errors();
 		commands_printf("Done!\n");
 	} else if (strcmp(argv[0], "encoder_clear_multiturn") == 0) {
 		encoder_ts57n8501_reset_multiturn();
 		commands_printf("Done!\n");
+#endif
 	} else if (strcmp(argv[0], "uptime") == 0) {
 		commands_printf("Uptime: %.2f s\n", (double)chVTGetSystemTimeX() / (double)CH_CFG_ST_FREQUENCY);
 	}
@@ -775,13 +775,14 @@ void terminal_process_string(char *str) {
 
 		commands_printf("kv");
 		commands_printf("  The calculated kv of the motor");
-
+#if CH_CFG_USE_HEAP
 		commands_printf("mem");
 		commands_printf("  Show memory usage");
-
+#endif
+#if CH_DBG_ENABLE_STACK_CHECK
 		commands_printf("threads");
 		commands_printf("  List all threads");
-
+#endif
 		commands_printf("fault");
 		commands_printf("  Prints the current fault code");
 
@@ -807,10 +808,10 @@ void terminal_process_string(char *str) {
 
 		commands_printf("rpm_dep");
 		commands_printf("  Prints some rpm-dep values");
-
+#if CAN_ENABLE
 		commands_printf("can_devs");
 		commands_printf("  Prints all CAN devices seen on the bus the past second");
-
+#endif
 		commands_printf("foc_encoder_detect [current]");
 		commands_printf("  Run the motor at 1Hz on open loop and compute encoder settings");
 
@@ -847,10 +848,10 @@ void terminal_process_string(char *str) {
 
 		commands_printf("foc_openloop_duty [duty] [erpm]");
 		commands_printf("  Create an open loop rotating voltage vector.");
-
+#if HAS_NRF
 		commands_printf("nrf_ext_set_enabled [enabled]");
 		commands_printf("  Enable or disable external NRF51822.");
-
+#endif
 		commands_printf("foc_sensors_detect_apply [current]");
 		commands_printf("  Automatically detect FOC sensors, and apply settings on success.");
 
@@ -860,23 +861,23 @@ void terminal_process_string(char *str) {
 
 		commands_printf("foc_detect_apply_all [max_power_loss_W]");
 		commands_printf("  Detect and apply all motor settings, based on maximum resistive motor power losses.");
-
+#if CAN_ENABLE
 		commands_printf("can_scan");
 		commands_printf("  Scan CAN-bus using ping commands, and print all devices that are found.");
-
+#endif
 		commands_printf("foc_detect_apply_all_can [max_power_loss_W]");
 		commands_printf("  Detect and apply all motor settings, based on maximum resistive motor power losses. Also");
 		commands_printf("  initiates detection in all VESCs found on the CAN-bus.");
 		
 		commands_printf("encoder");
 		commands_printf("  Prints the status of the AS5047, AD2S1205, or TS5700N8501 encoder.");
-
+#if HAS_TS5700N8501
 		commands_printf("encoder_clear_errors");
 		commands_printf("  Clear error of the TS5700N8501 encoder.)");
 
 		commands_printf("encoder_clear_multiturn");
 		commands_printf("  Clear multiturn counter of the TS5700N8501 encoder.)");
-
+#endif
 		commands_printf("uptime");
 		commands_printf("  Prints how many seconds have passed since boot.");
 
