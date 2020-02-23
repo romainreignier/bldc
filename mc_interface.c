@@ -33,8 +33,12 @@
 #include "drv8320s.h"
 #include "drv8323s.h"
 #include "buffer.h"
+#ifdef HAS_GPDRIVE
 #include "gpdrive.h"
+#endif
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "shutdown.h"
 #include "app.h"
 #include "utils.h"
@@ -80,7 +84,7 @@ static volatile float m_motor_current_unbalance;
 static volatile float m_motor_current_unbalance_error_rate;
 
 // Sampling variables
-#define ADC_SAMPLE_MAX_LEN		2000
+#define ADC_SAMPLE_MAX_LEN		2000 // Can be reduced (default: 2000)
 __attribute__((section(".ram4"))) static volatile int16_t m_curr0_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int16_t m_curr1_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int16_t m_ph1_samples[ADC_SAMPLE_MAX_LEN];
@@ -111,7 +115,7 @@ static void update_override_limits(volatile mc_configuration *conf);
 static void(*pwn_done_func)(void) = 0;
 
 // Threads
-static THD_WORKING_AREA(timer_thread_wa, 1024);
+static THD_WORKING_AREA(mc_timer_thread_wa, 1024);
 static THD_FUNCTION(timer_thread, arg);
 static THD_WORKING_AREA(sample_send_thread_wa, 1024);
 static THD_FUNCTION(sample_send_thread, arg);
@@ -156,7 +160,7 @@ void mc_interface_init(mc_configuration *configuration) {
 	m_sample_mode_last = DEBUG_SAMPLING_OFF;
 
 	// Start threads
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	chThdCreateStatic(mc_timer_thread_wa, sizeof(mc_timer_thread_wa), NORMALPRIO, timer_thread, NULL);
 	chThdCreateStatic(sample_send_thread_wa, sizeof(sample_send_thread_wa), NORMALPRIO - 1, sample_send_thread, NULL);
 
 #ifdef HW_HAS_DRV8301
@@ -220,9 +224,11 @@ void mc_interface_init(mc_configuration *configuration) {
 		mcpwm_foc_init(&m_conf);
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		gpdrive_init(&m_conf);
 		break;
+#endif
 
 	default:
 		break;
@@ -294,7 +300,10 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 	if (m_conf.motor_type != configuration->motor_type) {
 		mcpwm_deinit();
 		mcpwm_foc_deinit();
+
+#if HAS_GPDRIVE
 		gpdrive_deinit();
+#endif
 
 		m_conf = *configuration;
 
@@ -308,9 +317,11 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 			mcpwm_foc_init(&m_conf);
 			break;
 
+#if HAS_GPDRIVE
 		case MOTOR_TYPE_GPD:
 			gpdrive_init(&m_conf);
 			break;
+#endif
 
 		default:
 			break;
@@ -331,9 +342,11 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 		mcpwm_foc_set_configuration(&m_conf);
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		gpdrive_set_configuration(&m_conf);
 		break;
+#endif
 
 	default:
 		break;
@@ -352,9 +365,11 @@ bool mc_interface_dccal_done(void) {
 		ret = mcpwm_foc_is_dccal_done();
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		ret = gpdrive_is_dccal_done();
 		break;
+#endif
 
 	default:
 		break;
@@ -587,10 +602,12 @@ void mc_interface_set_brake_current(float current) {
 		mcpwm_foc_set_brake_current(DIR_MULT * current);
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		// For timeout to stop the output
 		gpdrive_set_mode(GPD_OUTPUT_MODE_NONE);
 		break;
+#endif
 
 	default:
 		break;
@@ -739,9 +756,11 @@ float mc_interface_get_sampling_frequency_now(void) {
 		ret = mcpwm_foc_get_sampling_frequency_now();
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		ret = gpdrive_get_switching_frequency_now();
 		break;
+#endif
 
 	default:
 		break;
@@ -1060,9 +1079,11 @@ float mc_interface_get_last_inj_adc_isr_duration(void) {
 		ret = mcpwm_foc_get_last_adc_isr_duration();
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		ret = gpdrive_get_last_adc_isr_duration();
 		break;
+#endif
 
 	default:
 		break;
@@ -1072,9 +1093,11 @@ float mc_interface_get_last_inj_adc_isr_duration(void) {
 }
 
 float mc_interface_read_reset_avg_motor_current(void) {
+#if HAS_GPDRIVE
 	if (m_conf.motor_type == MOTOR_TYPE_GPD) {
 		return gpdrive_get_current_filtered();
 	}
+#endif
 
 	float res = m_motor_current_sum / m_motor_current_iterations;
 	m_motor_current_sum = 0.0;
@@ -1083,9 +1106,11 @@ float mc_interface_read_reset_avg_motor_current(void) {
 }
 
 float mc_interface_read_reset_avg_input_current(void) {
+#if HAS_GPDRIVE
 	if (m_conf.motor_type == MOTOR_TYPE_GPD) {
 		return gpdrive_get_current_filtered() * gpdrive_get_modulation();
 	}
+#endif
 
 	float res = m_input_current_sum / m_input_current_iterations;
 	m_input_current_sum = 0.0;
@@ -1315,6 +1340,7 @@ setup_values mc_interface_get_setup_values(void) {
 	val.current_tot += mc_interface_get_tot_current_filtered();
 	val.current_in_tot += mc_interface_get_tot_current_in_filtered();
 
+#if CAN_ENABLE
 	for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 		can_status_msg *msg = comm_can_get_status_msg_index(i);
 		if (msg->id >= 0 && UTILS_AGE_S(msg->rx_time) < 0.1) {
@@ -1339,6 +1365,7 @@ setup_values mc_interface_get_setup_values(void) {
 			val.current_in_tot += msg4->current_in;
 		}
 	}
+#endif
 
 	return val;
 }
@@ -1449,9 +1476,11 @@ void mc_interface_fault_stop(mc_fault_code fault) {
 		mcpwm_foc_stop_pwm();
 		break;
 
+#if HAS_GPDRIVE
 	case MOTOR_TYPE_GPD:
 		gpdrive_set_mode(GPD_OUTPUT_MODE_NONE);
 		break;
+#endif
 
 	default:
 		break;

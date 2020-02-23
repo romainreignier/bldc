@@ -28,12 +28,15 @@ void app_set_configuration(app_configuration *conf);
 void app_disable_output(int time_ms);
 bool app_is_output_disabled(void);
 
+#if ENABLE_APP_PPM
 // Standard apps
 void app_ppm_start(void);
 void app_ppm_stop(void);
 float app_ppm_get_decoded_level(void);
 void app_ppm_configure(ppm_config *conf);
+#endif
 
+#if ENABLE_APP_ADC
 void app_adc_start(bool use_rx_tx);
 void app_adc_stop(void);
 void app_adc_configure(adc_config *conf);
@@ -41,6 +44,7 @@ float app_adc_get_decoded_level(void);
 float app_adc_get_voltage(void);
 float app_adc_get_decoded_level2(void);
 float app_adc_get_voltage2(void);
+#endif
 
 void app_uartcomm_start(void);
 void app_uartcomm_start_permanent(void);
@@ -49,12 +53,15 @@ void app_uartcomm_configure(uint32_t baudrate, bool permanent_enabled);
 void app_uartcomm_send_packet(unsigned char *data, unsigned int len);
 void app_uartcomm_send_packet_p(unsigned char *data, unsigned int len);
 
+#if ENABLE_APP_NUNCHUK
 void app_nunchuk_start(void);
 void app_nunchuk_stop(void);
 void app_nunchuk_configure(chuk_config *conf);
 float app_nunchuk_get_decoded_chuk(void);
 void app_nunchuk_update_output(chuck_data *data);
+#endif
 
+#if ENABLE_APP_BALANCE
 void app_balance_start(void);
 void app_balance_stop(void);
 void app_balance_configure(balance_config *conf, imu_config *conf2);
@@ -66,10 +73,13 @@ float app_balance_get_motor_current(void);
 float app_balance_get_motor_position(void);
 uint16_t app_balance_get_state(void);
 uint16_t app_balance_get_switch_value(void);
+#endif
 
+#if ENABLE_APP_CUSTOM
 // Custom apps
 void app_custom_start(void);
 void app_custom_stop(void);
 void app_custom_configure(app_configuration *conf);
+#endif
 
 #endif /* APP_H_ */

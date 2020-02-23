@@ -160,7 +160,7 @@ static void pll_run(float phase, float dt, volatile float *phase_var,
 #define IS_DETECTING()			(state == MC_STATE_DETECTING)
 
 // Threads
-static THD_WORKING_AREA(timer_thread_wa, 2048);
+static THD_WORKING_AREA(bldc_timer_thread_wa, 1024); // 2048
 static THD_FUNCTION(timer_thread, arg);
 static THD_WORKING_AREA(rpm_thread_wa, 1024);
 static THD_FUNCTION(rpm_thread, arg);
@@ -442,7 +442,7 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	// Start threads
 	timer_thd_stop = false;
 	rpm_thd_stop = false;
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	chThdCreateStatic(bldc_timer_thread_wa, sizeof(bldc_timer_thread_wa), NORMALPRIO, timer_thread, NULL);
 	chThdCreateStatic(rpm_thread_wa, sizeof(rpm_thread_wa), NORMALPRIO, rpm_thread, NULL);
 
 	// Check if the system has resumed from IWDG reset

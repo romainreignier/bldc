@@ -192,8 +192,10 @@ void flash_helper_jump_to_bootloader(void) {
 
 	mc_interface_unlock();
 	mc_interface_release_motor();
+# if COMM_USE_USB
 	usbDisconnectBus(&USBD1);
 	usbStop(&USBD1);
+#endif
 
 	sdStop(&HW_UART_DEV);
 	palSetPadMode(HW_UART_TX_PORT, HW_UART_TX_PIN, PAL_MODE_INPUT);

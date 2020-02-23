@@ -28,7 +28,9 @@
 #include "timeout.h"
 #include "commands.h"
 #include "encoder.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "app.h"
 #include "confgenerator.h"
 #include "stm32f4xx_flash.h"
@@ -1191,6 +1193,7 @@ int conf_general_detect_apply_all_foc(float max_power_loss,
 	return result;
 }
 
+#if CAN_ENABLE
 /**
  * Same as conf_general_detect_apply_all_foc, but also start detection in VESCs found on the CAN-bus.
  *
@@ -1314,3 +1317,4 @@ int conf_general_detect_apply_all_foc_can(bool detect_can, float max_power_loss,
 
 	return res;
 }
+#endif

@@ -21,10 +21,16 @@
 #include "ch.h"
 #include "hal.h"
 #include "hw.h"
+#if HAS_NRF
 #include "nrf_driver.h"
 #include "rfhelp.h"
+#endif
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
+#if HAS_IMU
 #include "imu.h"
+#endif
 
 // Private variables
 static app_configuration appconf;
@@ -47,60 +53,83 @@ const app_configuration* app_get_configuration(void) {
  */
 void app_set_configuration(app_configuration *conf) {
 	appconf = *conf;
-
+#if ENABLE_APP_PPM
 	app_ppm_stop();
+#endif
+#if ENABLE_APP_ADC
 	app_adc_stop();
+#endif
 	app_uartcomm_stop();
+#if ENABLE_APP_NUNCHUK
 	app_nunchuk_stop();
+#endif
+#if ENABLE_APP_BALANCE
+#if HAS_IMU
 	app_balance_stop();
+#endif
+#endif
 
+#if HAS_NRF
 	if (!conf_general_permanent_nrf_found) {
 		nrf_driver_stop();
 	}
+#endif
 
 #if CAN_ENABLE
 	comm_can_set_baud(conf->can_baud_rate);
 #endif
 
+#if ENABLE_APP_CUSTOM
 #ifdef APP_CUSTOM_TO_USE
 	app_custom_stop();
 #endif
+#endif
 
+#if HAS_IMU
 	imu_init(&conf->imu_conf);
-
 	// Configure balance app before starting it.
 	app_balance_configure(&appconf.app_balance_conf, &appconf.imu_conf);
+#endif
 
 	switch (appconf.app_to_use) {
+#if ENABLE_APP_PPM
 	case APP_PPM:
 		app_ppm_start();
 		break;
-
+#endif
+#if ENABLE_APP_ADC
 	case APP_ADC:
 		app_adc_start(true);
 		break;
-
+#endif
 	case APP_UART:
+#if HAS_I2C
 		hw_stop_i2c();
+#endif
 		app_uartcomm_start();
 		break;
 
+#if ENABLE_APP_PPM
 	case APP_PPM_UART:
 		hw_stop_i2c();
 		app_ppm_start();
 		app_uartcomm_start();
 		break;
-
+#endif
+#if ENABLE_APP_ADC
 	case APP_ADC_UART:
 		hw_stop_i2c();
 		app_adc_start(false);
 		app_uartcomm_start();
 		break;
-
+#endif
+#if ENABLE_APP_NUNCHUK
 	case APP_NUNCHUK:
 		app_nunchuk_start();
 		break;
-
+#endif
+#if ENABLE_APP_BALANCE
+#if HAS_IMU
 	case APP_BALANCE:
 		app_balance_start();
 		if(appconf.imu_conf.type == IMU_TYPE_INTERNAL){
@@ -108,35 +137,40 @@ void app_set_configuration(app_configuration *conf) {
 			app_uartcomm_start();
 		}
 		break;
-
+#endif
+#endif
+#if HAS_NRF
 	case APP_NRF:
 		if (!conf_general_permanent_nrf_found) {
 			nrf_driver_init();
 			rfhelp_restart();
 		}
 		break;
-
+#endif
+#ifdef ANABLE_APP_CUSTOM
 	case APP_CUSTOM:
 #ifdef APP_CUSTOM_TO_USE
 		hw_stop_i2c();
 		app_custom_start();
 #endif
 		break;
-
+#endif
 	default:
 		break;
 	}
 
-	app_ppm_configure(&appconf.app_ppm_conf);
-	app_adc_configure(&appconf.app_adc_conf);
+	//app_ppm_configure(&appconf.app_ppm_conf);
+	//app_adc_configure(&appconf.app_adc_conf);
 	app_uartcomm_configure(appconf.app_uart_baudrate, appconf.permanent_uart_enabled);
-	app_nunchuk_configure(&appconf.app_chuk_conf);
+	//app_nunchuk_configure(&appconf.app_chuk_conf);
 
 #ifdef APP_CUSTOM_TO_USE
 	app_custom_configure(&appconf);
 #endif
 
+#if HAS_NRF
 	rfhelp_update_conf(&appconf.app_nrf_conf);
+#endif
 }
 
 /**

@@ -21,6 +21,7 @@
 #include "hal.h"
 #include "stm32f4xx_conf.h"
 
+#if HAS_I2C
 // Variables
 static volatile bool i2c_running = false;
 
@@ -30,6 +31,7 @@ static const I2CConfig i2cfg = {
 		100000,
 		STD_DUTY_CYCLE
 };
+#endif
 
 void hw_init_gpio(void) {
 	// GPIO clock enable
@@ -145,6 +147,7 @@ void hw_setup_adc_channels(void) {
 	LL_ADC_INJ_SetSequencerRanks(ADC2, LL_ADC_INJ_RANK_2, LL_ADC_CHANNEL_9);
 }
 
+#if HAS_I2C
 void hw_start_i2c(void) {
 	i2cAcquireBus(&HW_I2C_DEV);
 
@@ -238,3 +241,4 @@ void hw_try_restore_i2c(void) {
 		i2cReleaseBus(&HW_I2C_DEV);
 	}
 }
+#endif

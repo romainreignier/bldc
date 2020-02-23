@@ -30,7 +30,9 @@
 #include "mcpwm.h"
 #include "mcpwm_foc.h"
 #include "ledpwm.h"
+#if COMM_USE_USB
 #include "comm_usb.h"
+#endif
 #include "ledpwm.h"
 #include "terminal.h"
 #include "hw.h"
@@ -38,17 +40,23 @@
 #include "packet.h"
 #include "commands.h"
 #include "timeout.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "ws2811.h"
 #include "led_external.h"
 #include "encoder.h"
 #include "servo_simple.h"
 #include "utils.h"
+#if HAS_NRF
 #include "nrf_driver.h"
 #include "rfhelp.h"
 #include "spi_sw.h"
+#endif
 #include "timer.h"
+#if HAS_IMU
 #include "imu.h"
+#endif
 #include "flash_helper.h"
 #if HAS_BLACKMAGIC
 #include "bm_if.h"
@@ -241,7 +249,7 @@ int main(void) {
 	app_set_configuration(&appconf);
 	app_uartcomm_start_permanent();
 
-#ifdef HW_HAS_PERMANENT_NRF
+#if defined(HAS_NRF) && defined(HW_HAS_PERMANENT_NRF)
 	conf_general_permanent_nrf_found = nrf_driver_init();
 	if (conf_general_permanent_nrf_found) {
 		rfhelp_restart();
@@ -336,7 +344,9 @@ int main(void) {
 
 	timeout_init();
 	timeout_configure(appconf.timeout_msec, appconf.timeout_brake_current);
+#if HAS_IMU
 	imu_init(&appconf.imu_conf);
+#endif
 
 #if HAS_BLACKMAGIC
 	bm_init();

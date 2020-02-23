@@ -157,7 +157,7 @@ static float correct_hall(float angle, float speed, float dt);
 static void terminal_plot_hfi(int argc, const char **argv);
 
 // Threads
-static THD_WORKING_AREA(timer_thread_wa, 1024);
+static THD_WORKING_AREA(foc_timer_thread_wa, 1024);
 static THD_FUNCTION(timer_thread, arg);
 static volatile bool timer_thd_stop;
 
@@ -494,7 +494,7 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 
 	// Start threads
 	timer_thd_stop = false;
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	chThdCreateStatic(foc_timer_thread_wa, sizeof(foc_timer_thread_wa), NORMALPRIO, timer_thread, NULL);
 
 	hfi_thd_stop = false;
 	chThdCreateStatic(hfi_thread_wa, sizeof(hfi_thread_wa), NORMALPRIO, hfi_thread, NULL);

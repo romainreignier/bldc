@@ -194,6 +194,62 @@
 #endif
 
 /*
+ * Enable NRF
+ */
+#ifndef HAS_NRF
+#define HAS_NRF				1
+#endif
+
+/*
+ * Enable IMU
+ */
+#ifndef HAS_IMU
+#define HAS_IMU				1
+#endif
+
+/*
+ * Enable COMPRESSION
+ */
+#ifndef HAS_COMPRESSION
+#define HAS_COMPRESSION		1
+#endif
+
+/*
+ * Enable GPDrive
+ */
+#ifndef HAS_GPDRIVE
+#define HAS_GPDRIVE			1
+#endif
+
+#ifndef HAS_I2C
+#define HAS_I2C			1
+#endif
+
+#ifndef HAS_ICU
+#define HAS_ICU		1
+#endif
+
+#ifndef ENABLE_APP_PPM
+#define ENABLE_APP_PPM 0
+#endif
+
+#ifndef ENABLE_APP_ADC
+#define ENABLE_APP_ADC 0
+#endif
+
+#ifndef ENABLE_APP_NUNCHUK
+#define ENABLE_APP_NUNCHUK 0
+#endif
+
+#ifndef ENABLE_APP_BALANCE
+#define ENABLE_APP_BALANCE 0
+#endif
+
+#ifndef ENABLE_APP_CUSTOM
+#define ENABLE_APP_CUSTOM 0
+#endif
+
+/*
  * Settings for the external LEDs (hardcoded for now)
  */
 #define LED_EXT_BATT_LOW			28.0

@@ -32,20 +32,30 @@
 #include "app.h"
 #include "timeout.h"
 #include "servo_dec.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "flash_helper.h"
 #include "utils.h"
 #include "packet.h"
 #include "encoder.h"
+#if HAS_NRF
 #include "nrf_driver.h"
+#endif
+#ifdef HAS_GPDRIVE
 #include "gpdrive.h"
+#endif
 #include "confgenerator.h"
+#if HAS_IMU
 #include "imu.h"
+#endif
 #include "shutdown.h"
 #if HAS_BLACKMAGIC
 #include "bm_if.h"
 #endif
+#if HAS_COMPRESSION
 #include "minilzo.h"
+#endif
 #include "stm32f4xx_flash.h"
 
 #include <math.h>
@@ -65,7 +75,9 @@ static volatile unsigned int blocking_thread_cmd_len = 0;
 static volatile bool is_blocking = false;
 static void(* volatile send_func)(unsigned char *data, unsigned int len) = 0;
 static void(* volatile send_func_blocking)(unsigned char *data, unsigned int len) = 0;
+#if HAS_NRF
 static void(* volatile send_func_nrf)(unsigned char *data, unsigned int len) = 0;
+#endif
 static void(* volatile appdata_func)(unsigned char *data, unsigned int len) = 0;
 static disp_pos_mode display_position_mode;
 static mutex_t print_mutex;
@@ -94,6 +106,7 @@ void commands_send_packet(unsigned char *data, unsigned int len) {
 	}
 }
 
+#if HAS_NRF
 /**
  * Send a packet using the set NRF51 send function. The NRF51 send function
  * is set when the COMM_EXT_NRF_PRESENT and COMM_EXT_NRF_ESB_RX_DATA commands
@@ -113,6 +126,7 @@ void commands_send_packet_nrf(unsigned char *data, unsigned int len) {
 		send_func_nrf(data, len);
 	}
 }
+#endif
 
 /**
  * Send data using the function last used by the blocking thread.
@@ -155,12 +169,16 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 	data++;
 	len--;
 
+#if HAS_NRF
 	// The NRF51 ESB implementation is treated like it has its own
 	// independent communication interface.
 	if (packet_id == COMM_EXT_NRF_PRESENT ||
 			packet_id == COMM_EXT_NRF_ESB_RX_DATA) {
 		send_func_nrf = reply_func;
 	} else {
+#else
+	{
+#endif
 		send_func = reply_func;
 	}
 
@@ -189,32 +207,41 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		reply_func(send_buffer, ind);
 	} break;
 
+#if CAN_ENABLE
 	case COMM_JUMP_TO_BOOTLOADER_ALL_CAN:
 		data[-1] = COMM_JUMP_TO_BOOTLOADER;
 		comm_can_send_buffer(255, data - 1, len + 1, 2);
 		chThdSleepMilliseconds(100);
 		/* Falls through. */
 		/* no break */
+#endif
+
 	case COMM_JUMP_TO_BOOTLOADER:
 		flash_helper_jump_to_bootloader();
 		break;
 
+#if CAN_ENABLE
 	case COMM_ERASE_NEW_APP_ALL_CAN:
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(6000);
 		}
+#endif
 
 		data[-1] = COMM_ERASE_NEW_APP;
 		comm_can_send_buffer(255, data - 1, len + 1, 2);
 		chThdSleepMilliseconds(1500);
 		/* Falls through. */
 		/* no break */
+#endif
+
 	case COMM_ERASE_NEW_APP: {
 		int32_t ind = 0;
-
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(6000);
 		}
+#endif
 		uint16_t flash_res = flash_helper_erase_new_app(buffer_get_uint32(data, &ind));
 
 		ind = 0;
@@ -224,8 +251,10 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		reply_func(send_buffer, ind);
 	} break;
 
+#if CAN_ENABLE
 	case COMM_WRITE_NEW_APP_DATA_ALL_CAN_LZO:
 	case COMM_WRITE_NEW_APP_DATA_ALL_CAN:
+#if HAS_COMPRESSION
 		if (packet_id == COMM_WRITE_NEW_APP_DATA_ALL_CAN_LZO) {
 			chMtxLock(&send_buffer_mutex);
 			memcpy(send_buffer_global, data + 6, len - 6);
@@ -235,18 +264,22 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			chMtxUnlock(&send_buffer_mutex);
 			len = decompressed_len + 4;
 		}
-
+#endif
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(2000);
 		}
-
+#endif
 		data[-1] = COMM_WRITE_NEW_APP_DATA;
 
 		comm_can_send_buffer(255, data - 1, len + 1, 2);
 		/* Falls through. */
 		/* no break */
+#endif
+
 	case COMM_WRITE_NEW_APP_DATA_LZO:
 	case COMM_WRITE_NEW_APP_DATA: {
+#if HAS_COMPRESSION
 		if (packet_id == COMM_WRITE_NEW_APP_DATA_LZO) {
 			chMtxLock(&send_buffer_mutex);
 			memcpy(send_buffer_global, data + 6, len - 6);
@@ -256,13 +289,15 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			chMtxUnlock(&send_buffer_mutex);
 			len = decompressed_len + 4;
 		}
-
+#endif
 		int32_t ind = 0;
 		uint32_t new_app_offset = buffer_get_uint32(data, &ind);
 
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(2000);
 		}
+#endif
 		uint16_t flash_res = flash_helper_write_new_app_data(new_app_offset, data + ind, len - ind);
 
 		SHUTDOWN_RESET();
@@ -509,6 +544,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		timeout_reset();
 		break;
 
+#if 0
 	case COMM_GET_DECODED_PPM: {
 		int32_t ind = 0;
 		uint8_t send_buffer[50];
@@ -551,11 +587,13 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		buffer_append_uint16(send_buffer, app_balance_get_switch_value(), &ind);
 		reply_func(send_buffer, ind);
 	} break;
-
+#endif
+#if CAN_ENABLE
 	case COMM_FORWARD_CAN:
 		comm_can_send_buffer(data[0], data + 1, len - 1, 0);
 		break;
-
+#endif
+#if 0
 	case COMM_SET_CHUCK_DATA: {
 		chuck_data chuck_d_tmp;
 
@@ -583,7 +621,9 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			appdata_func(data, len);
 		}
 		break;
+#endif
 
+#if HAS_NRF
 	case COMM_NRF_START_PAIRING: {
 		int32_t ind = 0;
 		nrf_driver_start_pairing(buffer_get_int32(data, &ind));
@@ -594,7 +634,8 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		send_buffer[ind++] = NRF_PAIR_STARTED;
 		reply_func(send_buffer, ind);
 	} break;
-
+#endif
+#if HAS_GPDRIVE
 	case COMM_GPD_SET_FSW: {
 		timeout_reset();
 		int32_t ind = 0;
@@ -649,6 +690,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		int32_t ind = 0;
 		gpdrive_set_buffer_int_scale(buffer_get_float32_auto(data, &ind));
 	} break;
+#endif
 
 	case COMM_GET_VALUES_SETUP:
 	case COMM_GET_VALUES_SETUP_SELECTIVE: {
@@ -740,11 +782,12 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 		int32_t ind = 0;
 		bool store = data[ind++];
-		bool forward_can = data[ind++];
 		bool ack = data[ind++];
-		bool divide_by_controllers = data[ind++];
-
 		float controller_num = 1.0;
+
+#if CAN_ENABLE
+		bool divide_by_controllers = data[ind++];
+		bool forward_can = data[ind++];
 
 		if (divide_by_controllers) {
 			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -754,6 +797,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 				}
 			}
 		}
+#endif
 
 		mcconf.l_current_min_scale = buffer_get_float32_auto(data, &ind);
 		mcconf.l_current_max_scale = buffer_get_float32_auto(data, &ind);
@@ -801,6 +845,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 		mc_interface_set_configuration(&mcconf);
 
+#if CAN_ENABLE
 		if (forward_can) {
 			data[-1] = COMM_SET_MCCONF_TEMP;
 			data[1] = 0; // No more forward
@@ -815,6 +860,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 				}
 			}
 		}
+#endif
 
 		if (ack) {
 			ind = 0;
@@ -824,6 +870,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		}
 	} break;
 
+#if HAS_NRF
 	case COMM_EXT_NRF_PRESENT: {
 		if (!conf_general_permanent_nrf_found) {
 			nrf_driver_init_ext_nrf();
@@ -843,17 +890,21 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 	case COMM_EXT_NRF_ESB_RX_DATA: {
 		nrf_driver_process_packet(data, len);
 	} break;
+#endif
 
 	case COMM_APP_DISABLE_OUTPUT: {
 		int32_t ind = 0;
-		bool fwd_can = data[ind++];
 		int time = buffer_get_int32(data, &ind);
 		app_disable_output(time);
 
+#if CAN_ENABLE
+		bool fwd_can = data[ind++];
 		if (fwd_can) {
 			data[0] = 0; // Don't continue forwarding
 			comm_can_send_buffer(255, data - 1, len + 1, 0);
 		}
+#endif
+
 	} break;
 
 	case COMM_TERMINAL_CMD_SYNC:
@@ -862,7 +913,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		terminal_process_string((char*)data);
 		chMtxUnlock(&terminal_mutex);
 		break;
-
+#if HAS_IMU
 	case COMM_GET_IMU_DATA: {
 		int32_t ind = 0;
 		uint8_t send_buffer[70];
@@ -935,23 +986,29 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 		reply_func(send_buffer, ind);
 	} break;
+#endif
 
+#if CAN_ENABLE
 	case COMM_ERASE_BOOTLOADER_ALL_CAN:
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(6000);
 		}
-
+#endif
 		data[-1] = COMM_ERASE_BOOTLOADER;
 		comm_can_send_buffer(255, data - 1, len + 1, 2);
 		chThdSleepMilliseconds(1500);
 		/* Falls through. */
 		/* no break */
+#endif
+
 	case COMM_ERASE_BOOTLOADER: {
 		int32_t ind = 0;
-
+#if HAS_NRF
 		if (nrf_driver_ext_nrf_running()) {
 			nrf_driver_pause(6000);
 		}
+#endif
 		uint16_t flash_res = flash_helper_erase_bootloader();
 
 		ind = 0;
@@ -967,6 +1024,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		timeout_reset();
 	} break;
 
+#if CAN_ENABLE
 	case COMM_CAN_FWD_FRAME: {
 		int32_t ind = 0;
 		uint32_t id = buffer_get_uint32(data, &ind);
@@ -978,6 +1036,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			comm_can_transmit_sid(id, data + ind, len - ind);
 		}
 	} break;
+#endif
 
 	// Blocking commands. Only one of them runs at any given time, in their
 	// own thread. If other blocking commands come before the previous one has
@@ -1059,6 +1118,7 @@ void commands_send_experiment_samples(float *samples, int len) {
 	commands_send_packet(buffer, index);
 }
 
+#if CAN_ENABLE
 void commands_fwd_can_frame(int len, unsigned char *data, uint32_t id, bool is_extended) {
 	if (len > 8) {
 		len = 8;
@@ -1073,6 +1133,7 @@ void commands_fwd_can_frame(int len, unsigned char *data, uint32_t id, bool is_e
 	index += len;
 	commands_send_packet(buffer, index);
 }
+#endif
 
 disp_pos_mode commands_get_disp_pos_mode(void) {
 	return display_position_mode;
@@ -1410,6 +1471,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 			}
 		} break;
 
+#if CAN_ENABLE
 		case COMM_DETECT_APPLY_ALL_FOC: {
 			int32_t ind = 0;
 			bool detect_can = data[ind++];
@@ -1429,6 +1491,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 				send_func_blocking(send_buffer, ind);
 			}
 		} break;
+#endif
 
 		case COMM_TERMINAL_CMD:
 			data[len] = '\0';
@@ -1437,6 +1500,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 			chMtxUnlock(&terminal_mutex);
 			break;
 
+#if CAN_ENABLE
 		case COMM_PING_CAN: {
 			int32_t ind = 0;
 			send_buffer[ind++] = COMM_PING_CAN;
@@ -1451,6 +1515,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 				send_func_blocking(send_buffer, ind);
 			}
 		} break;
+#endif
 
 #if HAS_BLACKMAGIC
 		case COMM_BM_CONNECT: {
@@ -1473,6 +1538,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 
 		case COMM_BM_WRITE_FLASH_LZO:
 		case COMM_BM_WRITE_FLASH: {
+#if HAS_COMPRESSION
 			if (packet_id == COMM_BM_WRITE_FLASH_LZO) {
 				memcpy(send_buffer, data + 6, len - 6);
 				int32_t ind = 4;
@@ -1480,7 +1546,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 				lzo1x_decompress_safe(send_buffer, len - 6, data + 4, &decompressed_len, NULL);
 				len = decompressed_len + 4;
 			}
-
+#endif
 			int32_t ind = 0;
 			uint32_t addr = buffer_get_uint32(data, &ind);
 
@@ -1505,8 +1571,9 @@ static THD_FUNCTION(blocking_thread, arg) {
 
 		case COMM_BM_DISCONNECT: {
 			bm_disconnect();
+#if HAS_NRF
 			bm_leave_nrf_debug_mode();
-
+#endif
 			int32_t ind = 0;
 			send_buffer[ind++] = packet_id;
 			if (send_func_blocking) {
@@ -1524,6 +1591,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 			}
 		} break;
 
+#if HAS_NRF
 		case COMM_BM_MAP_PINS_NRF5X: {
 			int32_t ind = 0;
 			send_buffer[ind++] = packet_id;
@@ -1539,6 +1607,7 @@ static THD_FUNCTION(blocking_thread, arg) {
 				send_func_blocking(send_buffer, ind);
 			}
 		} break;
+#endif
 
 		case COMM_BM_MEM_READ: {
 			int32_t ind = 0;

@@ -5,7 +5,8 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 -std=gnu99 -D_GNU_SOURCE
+  #USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 -std=gnu99 -D_GNU_SOURCE
+  USE_OPT = -Os -fomit-frame-pointer -std=gnu99 -D_GNU_SOURCE
   USE_OPT += -DBOARD_OTG_NOVBUSSENS $(build_args)
   USE_OPT += -fsingle-precision-constant -Wdouble-promotion
 endif
@@ -109,13 +110,19 @@ include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Other files
 include hwconf/hwconf.mk
 include applications/applications.mk
-include nrf/nrf.mk
-include libcanard/canard.mk
-include imu/imu.mk
-include compression/compression.mk
-include blackmagic/blackmagic.mk
+#include nrf/nrf.mk
+#include libcanard/canard.mk
+#include imu/imu.mk
+#include compression/compression.mk
+#include blackmagic/blackmagic.mk
 include st_drivers/STM32F4xx_LL_Driver/stm32ll.mk
 include Legacy/stlegacy.mk
+
+#GPDRIVESRC=gpdrive.c
+#CANSRC=comm_can.c
+#WS2811SRC=ws2811.c led_external.c
+#SERVODECSRC=servo_dec.c
+#COMMUSBSRC=comm_usb_serial.c comm_usb.c
 
 # Define linker script file here
 LDSCRIPT= ld_eeprom_emu.ld
@@ -127,15 +134,14 @@ CSRC = $(ALLCSRC) \
        $(CHIBIOS)/os/various/syscalls.c \
        board.c \
        main.c \
-       comm_usb_serial.c \
+       $(COMUSBSRC) \
        irq_handlers.c \
        buffer.c \
-       comm_usb.c \
        crc.c \
        digital_filter.c \
        ledpwm.c \
        mcpwm.c \
-       servo_dec.c \
+       $(SERVODECSRC) \
        utils.c \
        servo_simple.c \
        packet.c \
@@ -144,14 +150,13 @@ CSRC = $(ALLCSRC) \
        eeprom.c \
        commands.c \
        timeout.c \
-       comm_can.c \
-       ws2811.c \
-       led_external.c \
+       $(CANSRC) \
+       $(WS2811SRC) \
        encoder.c \
        flash_helper.c \
        mc_interface.c \
        mcpwm_foc.c \
-       gpdrive.c \
+       $(GPDRIVESRC) \
        confgenerator.c \
        timer.c \
        i2c_bb.c \
@@ -242,7 +247,10 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DUSE_FULL_LL_DRIVER -DSTM32F405xx
+UDEFS = -DUSE_FULL_LL_DRIVER -DSTM32F405xx \
+		-DHAS_BLACKMAGIC=0 -DHAS_NRF=0 -DHAS_IMU=0 \
+		-DHAS_COMPRESSION=0 -DHAS_GPDRIVE=0 -DCAN_ENABLE=0 \
+		-DHAS_I2C=0 -DHAS_ICU=0 -DCOMM_USE_USB=0
 
 # Define ASM defines here
 UADEFS =

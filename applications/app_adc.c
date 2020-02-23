@@ -25,7 +25,9 @@
 #include "mc_interface.h"
 #include "timeout.h"
 #include "utils.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "hw.h"
 #include <math.h>
 
@@ -84,7 +86,7 @@ float app_adc_get_voltage2(void) {
 	return read_voltage2;
 }
 
-
+__attribute__((noreturn))
 static THD_FUNCTION(adc_thread, arg) {
 	(void)arg;
 
@@ -405,6 +407,7 @@ static THD_FUNCTION(adc_thread, arg) {
 			pulses_without_power_before = ms_without_power;
 			mc_interface_set_brake_current(timeout_get_brake_current());
 
+#if CAN_ENABLE
 			if (config.multi_esc) {
 				for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 					can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -414,6 +417,7 @@ static THD_FUNCTION(adc_thread, arg) {
 					}
 				}
 			}
+#endif
 
 			continue;
 		}
@@ -448,6 +452,7 @@ static THD_FUNCTION(adc_thread, arg) {
 
 			mc_interface_set_pid_speed(pid_rpm);
 
+#if CAN_ENABLE
 			// Send the same duty cycle to the other controllers
 			if (config.multi_esc) {
 				float current = mc_interface_get_tot_current_directional_filtered();
@@ -460,6 +465,7 @@ static THD_FUNCTION(adc_thread, arg) {
 					}
 				}
 			}
+#endif
 
 			continue;
 		}
@@ -469,6 +475,7 @@ static THD_FUNCTION(adc_thread, arg) {
 		// Find lowest RPM (for traction control)
 		float rpm_local = mc_interface_get_rpm();
 		float rpm_lowest = rpm_local;
+#if CAN_ENABLE
 		if (config.multi_esc) {
 			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 				can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -495,11 +502,13 @@ static THD_FUNCTION(adc_thread, arg) {
 				}
 			}
 		}
+#endif
 
 		if (current_mode) {
 			if (current_mode_brake) {
 				mc_interface_set_brake_current_rel(current_rel);
 
+#if CAN_ENABLE
 				// Send brake command to all ESCs seen recently on the CAN bus
 				if (config.multi_esc) {
 					for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -510,6 +519,7 @@ static THD_FUNCTION(adc_thread, arg) {
 						}
 					}
 				}
+#endif
 			} else {
 				float current_out = current_rel;
 				bool is_reverse = false;
@@ -521,6 +531,7 @@ static THD_FUNCTION(adc_thread, arg) {
 					rpm_lowest = -rpm_lowest;
 				}
 
+#if CAN_ENABLE
 				// Traction control
 				if (config.multi_esc) {
 					for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -550,6 +561,7 @@ static THD_FUNCTION(adc_thread, arg) {
 						current_out = utils_map(diff, 0.0, config.tc_max_diff, current_rel, 0.0);
 					}
 				}
+#endif
 
 				if (is_reverse) {
 					mc_interface_set_current_rel(-current_out);

@@ -25,7 +25,9 @@
 #include "mc_interface.h"
 #include "commands.h"
 #include "hw.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "utils.h"
 #include "timeout.h"
 #include "encoder.h"
@@ -34,15 +36,17 @@
 #include "drv8320s.h"
 #include "drv8323s.h"
 #include "app.h"
+#if COMM_USE_USB
 #include "comm_usb.h"
 #include "comm_usb_serial.h"
+#endif
 
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 
 // Settings
-#define FAULT_VEC_LEN						25
+#define FAULT_VEC_LEN						8 // 25
 #define CALLBACK_LEN						40
 
 // Private types
@@ -99,13 +103,16 @@ void terminal_process_string(char *str) {
 	} else if (strcmp(argv[0], "kv") == 0) {
 		commands_printf("Calculated KV: %.2f rpm/volt\n", (double)mcpwm_get_kv_filtered());
 	} else if (strcmp(argv[0], "mem") == 0) {
+#if CH_CFG_USE_HEAP
 		size_t n, size, largest;
 		n = chHeapStatus(NULL, &size, &largest);
 		commands_printf("core free memory : %u bytes", chCoreGetStatusX());
 		commands_printf("heap fragments   : %u", n);
 		commands_printf("heap free total  : %u bytes", size);
 		commands_printf("heap free largest: %u bytes\n", largest);
+#endif
 	} else if (strcmp(argv[0], "threads") == 0) {
+#if CH_DBG_ENABLE_STACK_CHECK
 		thread_t *tp;
 		static const char *states[] = {CH_STATE_NAMES};
 		commands_printf("    addr    stack prio refs     state           name time    ");
@@ -120,6 +127,7 @@ void terminal_process_string(char *str) {
 			tp = chRegNextThread(tp);
 		} while (tp != NULL);
 		commands_printf(" ");
+#endif
 	} else if (strcmp(argv[0], "fault") == 0) {
 		commands_printf("%s\n", mc_interface_fault_to_string(mc_interface_get_fault()));
 	} else if (strcmp(argv[0], "faults") == 0) {
@@ -247,6 +255,7 @@ void terminal_process_string(char *str) {
 		commands_printf("Cycle int limit running: %.2f", (double)rpm_dep.cycle_int_limit_running);
 		commands_printf("Cycle int limit max: %.2f\n", (double)rpm_dep.cycle_int_limit_max);
 	} else if (strcmp(argv[0], "can_devs") == 0) {
+#if CAN_ENABLE
 		commands_printf("CAN devices seen on the bus the past second:\n");
 		for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 			can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -260,6 +269,9 @@ void terminal_process_string(char *str) {
 				commands_printf("Duty               : %.2f\n", (double)msg->duty);
 			}
 		}
+#else
+		commands_printf("CAN not enabled on this device.\n");
+#endif
 	} else if (strcmp(argv[0], "foc_encoder_detect") == 0) {
 		if (argc == 2) {
 			float current = -1.0;
@@ -447,7 +459,9 @@ void terminal_process_string(char *str) {
 				STM32_UUID_8[0], STM32_UUID_8[1], STM32_UUID_8[2], STM32_UUID_8[3],
 				STM32_UUID_8[4], STM32_UUID_8[5], STM32_UUID_8[6], STM32_UUID_8[7],
 				STM32_UUID_8[8], STM32_UUID_8[9], STM32_UUID_8[10], STM32_UUID_8[11]);
+#if HAS_NRF
 		commands_printf("Permanent NRF found: %s", conf_general_permanent_nrf_found ? "Yes" : "No");
+#endif
 
 		int curr0_offset;
 		int curr1_offset;
@@ -458,7 +472,7 @@ void terminal_process_string(char *str) {
 		commands_printf("FOC Current Offsets: %d %d %d",
 				curr0_offset, curr1_offset, curr2_offset);
 
-#ifdef COMM_USE_USB
+#if COMM_USE_USB
 		commands_printf("USB config events: %d", comm_usb_serial_configured_cnt());
 		commands_printf("USB write timeouts: %u", comm_usb_get_write_timeout_cnt());
 #else
@@ -502,7 +516,7 @@ void terminal_process_string(char *str) {
 		if (argc == 2) {
 			int enabled = -1;
 			sscanf(argv[1], "%d", &enabled);
-
+#if HAS_NRF
 			if (enabled >= 0) {
 				uint8_t buffer[2];
 				buffer[0] = COMM_EXT_NRF_SET_ENABLED;
@@ -511,6 +525,9 @@ void terminal_process_string(char *str) {
 			} else {
 				commands_printf("Invalid argument(s).\n");
 			}
+#else
+			commands_printf("This hardware does not have NRF.\n");
+#endif
 		} else {
 			commands_printf("This command requires one argument.\n");
 		}
@@ -622,6 +639,7 @@ void terminal_process_string(char *str) {
 			commands_printf("This command requires one argument.\n");
 		}
 	} else if (strcmp(argv[0], "can_scan") == 0) {
+#if CAN_ENABLE
 		bool found = false;
 		for (int i = 0;i < 254;i++) {
 			if (comm_can_ping(i)) {
@@ -635,7 +653,11 @@ void terminal_process_string(char *str) {
 		} else {
 			commands_printf("No CAN devices found\n");
 		}
+#else
+		commands_printf("CAN not enabled.\n");
+#endif
 	} else if (strcmp(argv[0], "foc_detect_apply_all_can") == 0) {
+#if CAN_ENABLE
 		if (argc == 2) {
 			float max_power_loss = -1.0;
 			sscanf(argv[1], "%f", &max_power_loss);
@@ -682,6 +704,9 @@ void terminal_process_string(char *str) {
 		} else {
 			commands_printf("This command requires one argument.\n");
 		}
+#else
+		commands_printf("CAN not enabled.\n");
+#endif
 	} else if (strcmp(argv[0], "encoder") == 0) {
 		if (mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_AS5047_SPI ||
 			mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_AD2S1205 ||

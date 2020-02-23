@@ -26,7 +26,9 @@
 #include "mc_interface.h"
 #include "timeout.h"
 #include "utils.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include <math.h>
 
 // Only available if servo output is not active
@@ -346,6 +348,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 		float current_highest_abs = fabsf(mc_interface_get_tot_current_directional_filtered());
 		float duty_highest_abs = fabsf(duty_now);
 
+#if CAN_ENABLE
 		if (config.multi_esc) {
 			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 				can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -365,6 +368,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 				}
 			}
 		}
+#endif
 
 		if (config.ctrl_type == PPM_CTRL_TYPE_CURRENT_SMART_REV) {
 			bool duty_control = false;
@@ -385,6 +389,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 
 				mc_interface_set_duty(duty_rev);
 
+#if CAN_ENABLE
 				// Send the same duty cycle to the other controllers
 				if (config.multi_esc) {
 					for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -395,6 +400,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 						}
 					}
 				}
+#endif
 
 				current_mode = false;
 			} else {
@@ -407,6 +413,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 			float current_filtered = mc_interface_get_tot_current_directional_filtered();
 			float duty = mc_interface_get_duty_cycle_now();
 
+#if CAN_ENABLE
 			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 				can_status_msg *msg = comm_can_get_status_msg_index(i);
 
@@ -418,12 +425,14 @@ static THD_FUNCTION(ppm_thread, arg) {
 					}
 				}
 			}
+#endif
 		}
 
 		if (current_mode) {
 			if (current_mode_brake) {
 				mc_interface_set_brake_current(current);
 
+#if CAN_ENABLE
 				// Send brake command to all ESCs seen recently on the CAN bus
 				for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 					can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -432,6 +441,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 						comm_can_set_current_brake(msg->id, current);
 					}
 				}
+#endif
 			} else {
 				float current_out = current;
 				bool is_reverse = false;
@@ -443,6 +453,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 					rpm_lowest = -rpm_lowest;
 				}
 
+#if CAN_ENABLE
 				// Traction control
 				if (config.multi_esc) {
 					for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -478,6 +489,7 @@ static THD_FUNCTION(ppm_thread, arg) {
 						}
 					}
 				}
+#endif
 
 				if (is_reverse) {
 					mc_interface_set_current(-current_out);

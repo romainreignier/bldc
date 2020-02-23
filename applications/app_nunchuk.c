@@ -29,7 +29,9 @@
 #include <math.h>
 #include "led_external.h"
 #include "datatypes.h"
+#if CAN_ENABLE
 #include "comm_can.h"
+#endif
 #include "terminal.h"
 
 // Settings
@@ -332,6 +334,7 @@ static THD_FUNCTION(output_thread, arg) {
 
 			mc_interface_set_pid_speed(pid_rpm);
 
+#if CAN_ENABLE
 			// Send the same current to the other controllers
 			if (config.multi_esc) {
 				float current = mc_interface_get_tot_current_directional_filtered();
@@ -344,6 +347,7 @@ static THD_FUNCTION(output_thread, arg) {
 					}
 				}
 			}
+#endif
 
 			// Set the previous ramping current to not get a spike when releasing
 			// PID control and to get a smooth transition.
@@ -372,6 +376,7 @@ static THD_FUNCTION(output_thread, arg) {
 		float current_highest = current_now;
 		float duty_highest_abs = fabsf(duty_now);
 
+#if CAN_ENABLE
 		if (config.multi_esc) {
 			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
 				can_status_msg *msg = comm_can_get_status_msg_index(i);
@@ -402,6 +407,7 @@ static THD_FUNCTION(output_thread, arg) {
 				}
 			}
 		}
+#endif
 
 		if (config.use_smart_rev) {
 			bool duty_control = false;
@@ -422,6 +428,7 @@ static THD_FUNCTION(output_thread, arg) {
 
 				mc_interface_set_duty(duty_rev);
 
+#if CAN_ENABLE
 				// Send the same duty cycle to the other controllers
 				if (config.multi_esc) {
 					for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -432,6 +439,7 @@ static THD_FUNCTION(output_thread, arg) {
 						}
 					}
 				}
+#endif
 
 				// Set the previous ramping current to not get a spike when releasing
 				// duty control.
@@ -489,6 +497,7 @@ static THD_FUNCTION(output_thread, arg) {
 		if (current < 0.0) {
 			mc_interface_set_brake_current(current);
 
+#if CAN_ENABLE
 			// Send brake command to all ESCs seen recently on the CAN bus
 			if (config.multi_esc) {
 				for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -499,9 +508,11 @@ static THD_FUNCTION(output_thread, arg) {
 					}
 				}
 			}
+#endif
 		} else {
 			float current_out = current;
 
+#if CAN_ENABLE
 			// Traction control
 			if (config.multi_esc) {
 				for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
@@ -537,6 +548,7 @@ static THD_FUNCTION(output_thread, arg) {
 					}
 				}
 			}
+#endif
 
 			if (is_reverse) {
 				mc_interface_set_current(-current_out);
