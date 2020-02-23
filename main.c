@@ -37,7 +37,6 @@
 #include "packet.h"
 #include "commands.h"
 #include "timeout.h"
-#include "comm_can.h"
 #include "encoder.h"
 #include "utils.h"
 #include "timer.h"
@@ -189,10 +188,6 @@ int main(void) {
 	mc_interface_init(&mcconf);
 
 	commands_init();
-
-#if CAN_ENABLE
-	comm_can_init();
-#endif
 
 	app_configuration appconf;
 	conf_general_read_app_configuration(&appconf);

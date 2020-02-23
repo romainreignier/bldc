@@ -21,7 +21,6 @@
 #include "ch.h"
 #include "hal.h"
 #include "hw.h"
-#include "comm_can.h"
 
 // Private variables
 static app_configuration appconf;
@@ -46,10 +45,6 @@ void app_set_configuration(app_configuration *conf) {
 	appconf = *conf;
 
 	app_uartcomm_stop();
-
-#if CAN_ENABLE
-	comm_can_set_baud(conf->can_baud_rate);
-#endif
 
 #ifdef APP_CUSTOM_TO_USE
 	app_custom_stop();

@@ -109,7 +109,6 @@ include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Other files
 include hwconf/hwconf.mk
 include applications/applications.mk
-include libcanard/canard.mk
 include st_drivers/STM32F4xx_LL_Driver/stm32ll.mk
 include Legacy/stlegacy.mk
 
@@ -136,7 +135,6 @@ CSRC = $(ALLCSRC) \
        eeprom.c \
        commands.c \
        timeout.c \
-       comm_can.c \
        encoder.c \
        flash_helper.c \
        mc_interface.c \
@@ -147,7 +145,6 @@ CSRC = $(ALLCSRC) \
        stdperiph_stm32f4/src/stm32f4xx_flash.c \
        $(HWSRC) \
        $(APPSRC) \
-       $(CANARDSRC) \
        $(STM32LLSRC) \
        $(STLEGACYSRC)
 

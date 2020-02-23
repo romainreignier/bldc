@@ -25,7 +25,6 @@
 #include "mc_interface.h"
 #include "commands.h"
 #include "hw.h"
-#include "comm_can.h"
 #include "utils.h"
 #include "timeout.h"
 #include "encoder.h"
@@ -248,20 +247,6 @@ void terminal_process_string(char *str) {
 		commands_printf("Cycle int limit: %.2f", (double)rpm_dep.cycle_int_limit);
 		commands_printf("Cycle int limit running: %.2f", (double)rpm_dep.cycle_int_limit_running);
 		commands_printf("Cycle int limit max: %.2f\n", (double)rpm_dep.cycle_int_limit_max);
-	} else if (strcmp(argv[0], "can_devs") == 0) {
-		commands_printf("CAN devices seen on the bus the past second:\n");
-		for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
-			can_status_msg *msg = comm_can_get_status_msg_index(i);
-
-			if (msg->id >= 0 && UTILS_AGE_S(msg->rx_time) < 1.0) {
-				commands_printf("ID                 : %i", msg->id);
-				commands_printf("RX Time            : %i", msg->rx_time);
-				commands_printf("Age (milliseconds) : %.2f", (double)(UTILS_AGE_S(msg->rx_time) * 1000.0));
-				commands_printf("RPM                : %.2f", (double)msg->rpm);
-				commands_printf("Current            : %.2f", (double)msg->current);
-				commands_printf("Duty               : %.2f\n", (double)msg->duty);
-			}
-		}
 	} else if (strcmp(argv[0], "foc_encoder_detect") == 0) {
 		if (argc == 2) {
 			float current = -1.0;
@@ -599,67 +584,6 @@ void terminal_process_string(char *str) {
 		} else {
 			commands_printf("This command requires one argument.\n");
 		}
-	} else if (strcmp(argv[0], "can_scan") == 0) {
-		bool found = false;
-		for (int i = 0;i < 254;i++) {
-			if (comm_can_ping(i)) {
-				commands_printf("Found VESC with ID: %d", i);
-				found = true;
-			}
-		}
-
-		if (found) {
-			commands_printf("Done\n");
-		} else {
-			commands_printf("No CAN devices found\n");
-		}
-	} else if (strcmp(argv[0], "foc_detect_apply_all_can") == 0) {
-		if (argc == 2) {
-			float max_power_loss = -1.0;
-			sscanf(argv[1], "%f", &max_power_loss);
-
-			if (max_power_loss > 0.0) {
-				commands_printf("Running detection...");
-				int res = conf_general_detect_apply_all_foc_can(true, max_power_loss, 0.0, 0.0, 0.0, 0.0);
-
-				commands_printf("Res: %d", res);
-
-				if (res >= 0) {
-					commands_printf("Detection finished and applied. Results:");
-					mcconf = *mc_interface_get_configuration();
-					commands_printf("Motor Current       : %.1f A", (double)(mcconf.l_current_max));
-					commands_printf("Motor R             : %.2f mOhm", (double)(mcconf.foc_motor_r * 1e3));
-					commands_printf("Motor L             : %.2f microH", (double)(mcconf.foc_motor_l * 1e6));
-					commands_printf("Motor Flux Linkage  : %.3f mWb", (double)(mcconf.foc_motor_flux_linkage * 1e3));
-					commands_printf("Temp Comp           : %s", mcconf.foc_temp_comp ? "true" : "false");
-					if (mcconf.foc_temp_comp) {
-						commands_printf("Temp Comp Base Temp : %.1f degC", (double)mcconf.foc_temp_comp_base_temp);
-					}
-
-					if (res == 0) {
-						commands_printf("No sensors found, using sensorless mode.\n");
-					} else if (res == 1) {
-						commands_printf("Found hall sensors, using them.\n");
-					} else if (res == 2) {
-						commands_printf("Found AS5047 encoder, using it.\n");
-					} else {
-						commands_printf("Detection error: %d\n", res);
-					}
-				} else {
-					if (res == -10) {
-						commands_printf("Could not measure flux linkage.");
-					} else if (res == -11) {
-						commands_printf("Fault code occured during detection.");
-					}
-
-					commands_printf("Detection failed.\n");
-				}
-			} else {
-				commands_printf("Invalid argument(s).\n");
-			}
-		} else {
-			commands_printf("This command requires one argument.\n");
-		}
 	} else if (strcmp(argv[0], "encoder") == 0) {
 		if (mcconf.m_sensor_port_mode == SENSOR_PORT_MODE_AS5047_SPI) {
 			commands_printf("SPI encoder value: %d, errors: %d, error rate: %.3f %%",
@@ -722,9 +646,6 @@ void terminal_process_string(char *str) {
 		commands_printf("rpm_dep");
 		commands_printf("  Prints some rpm-dep values");
 
-		commands_printf("can_devs");
-		commands_printf("  Prints all CAN devices seen on the bus the past second");
-
 		commands_printf("foc_encoder_detect [current]");
 		commands_printf("  Run the motor at 1Hz on open loop and compute encoder settings");
 
@@ -772,13 +693,6 @@ void terminal_process_string(char *str) {
 		commands_printf("foc_detect_apply_all [max_power_loss_W]");
 		commands_printf("  Detect and apply all motor settings, based on maximum resistive motor power losses.");
 
-		commands_printf("can_scan");
-		commands_printf("  Scan CAN-bus using ping commands, and print all devices that are found.");
-
-		commands_printf("foc_detect_apply_all_can [max_power_loss_W]");
-		commands_printf("  Detect and apply all motor settings, based on maximum resistive motor power losses. Also");
-		commands_printf("  initiates detection in all VESCs found on the CAN-bus.");
-		
 		commands_printf("encoder");
 		commands_printf("  Prints the status of the AS5047 encoder.");
 

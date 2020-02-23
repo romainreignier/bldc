@@ -30,7 +30,6 @@
 #include "mc_interface.h"
 #include "app.h"
 #include "timeout.h"
-#include "comm_can.h"
 #include "utils.h"
 #include "packet.h"
 #include "encoder.h"
@@ -153,22 +152,10 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		reply_func(send_buffer, ind);
 	} break;
 
-	case COMM_JUMP_TO_BOOTLOADER_ALL_CAN:
-		data[-1] = COMM_JUMP_TO_BOOTLOADER;
-		comm_can_send_buffer(255, data - 1, len + 1, 2);
-		chThdSleepMilliseconds(100);
-		/* Falls through. */
-		/* no break */
 	case COMM_JUMP_TO_BOOTLOADER:
 		flash_helper_jump_to_bootloader();
 		break;
 
-	case COMM_ERASE_NEW_APP_ALL_CAN:
-		data[-1] = COMM_ERASE_NEW_APP;
-		comm_can_send_buffer(255, data - 1, len + 1, 2);
-		chThdSleepMilliseconds(1500);
-		/* Falls through. */
-		/* no break */
 	case COMM_ERASE_NEW_APP: {
 		int32_t ind = 0;
 
@@ -181,12 +168,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		reply_func(send_buffer, ind);
 	} break;
 
-	case COMM_WRITE_NEW_APP_DATA_ALL_CAN:
-		data[-1] = COMM_WRITE_NEW_APP_DATA;
-
-		comm_can_send_buffer(255, data - 1, len + 1, 2);
-		/* Falls through. */
-		/* no break */
 	case COMM_WRITE_NEW_APP_DATA: {
 		int32_t ind = 0;
 		uint32_t new_app_offset = buffer_get_uint32(data, &ind);
@@ -434,10 +415,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		timeout_reset();
 		break;
 
-	case COMM_FORWARD_CAN:
-		comm_can_send_buffer(data[0], data + 1, len - 1, 0);
-		break;
-
 	case COMM_CUSTOM_APP_DATA:
 		if (appdata_func) {
 			appdata_func(data, len);
@@ -534,20 +511,9 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 		int32_t ind = 0;
 		bool store = data[ind++];
-		bool forward_can = data[ind++];
 		bool ack = data[ind++];
-		bool divide_by_controllers = data[ind++];
 
 		float controller_num = 1.0;
-
-		if (divide_by_controllers) {
-			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
-				can_status_msg *msg = comm_can_get_status_msg_index(i);
-				if (msg->id >= 0 && UTILS_AGE_S(msg->rx_time) < 0.1) {
-					controller_num += 1.0;
-				}
-			}
-		}
 
 		mcconf.l_current_min_scale = buffer_get_float32_auto(data, &ind);
 		mcconf.l_current_max_scale = buffer_get_float32_auto(data, &ind);
@@ -595,21 +561,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 		mc_interface_set_configuration(&mcconf);
 
-		if (forward_can) {
-			data[-1] = COMM_SET_MCCONF_TEMP;
-			data[1] = 0; // No more forward
-			data[2] = 0; // No ack
-			data[3] = 0; // No dividing, see comment above
-
-			// TODO: Maybe broadcast on CAN-bus?
-			for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
-				can_status_msg *msg = comm_can_get_status_msg_index(i);
-				if (msg->id >= 0 && UTILS_AGE_S(msg->rx_time) < 0.1) {
-					comm_can_send_buffer(msg->id, data - 1, len + 1, 0);
-				}
-			}
-		}
-
 		if (ack) {
 			ind = 0;
 			uint8_t send_buffer[50];
@@ -620,14 +571,9 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 	case COMM_APP_DISABLE_OUTPUT: {
 		int32_t ind = 0;
-		bool fwd_can = data[ind++];
 		int time = buffer_get_int32(data, &ind);
 		app_disable_output(time);
 
-		if (fwd_can) {
-			data[0] = 0; // Don't continue forwarding
-			comm_can_send_buffer(255, data - 1, len + 1, 0);
-		}
 	} break;
 
 	case COMM_TERMINAL_CMD_SYNC:
@@ -637,13 +583,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		chMtxUnlock(&terminal_mutex);
 		break;
 
-	case COMM_ERASE_BOOTLOADER_ALL_CAN:
-
-		data[-1] = COMM_ERASE_BOOTLOADER;
-		comm_can_send_buffer(255, data - 1, len + 1, 2);
-		chThdSleepMilliseconds(1500);
-		/* Falls through. */
-		/* no break */
 	case COMM_ERASE_BOOTLOADER: {
 		int32_t ind = 0;
 
@@ -662,18 +601,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		timeout_reset();
 	} break;
 
-	case COMM_CAN_FWD_FRAME: {
-		int32_t ind = 0;
-		uint32_t id = buffer_get_uint32(data, &ind);
-		bool is_ext = data[ind++];
-
-		if (is_ext) {
-			comm_can_transmit_eid(id, data + ind, len - ind);
-		} else {
-			comm_can_transmit_sid(id, data + ind, len - ind);
-		}
-	} break;
-
 	// Blocking commands. Only one of them runs at any given time, in their
 	// own thread. If other blocking commands come before the previous one has
 	// finished, they are discarded.
@@ -685,7 +612,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 	case COMM_DETECT_HALL_FOC:
 	case COMM_DETECT_MOTOR_FLUX_LINKAGE_OPENLOOP:
 	case COMM_DETECT_APPLY_ALL_FOC:
-	case COMM_PING_CAN:
 		if (!is_blocking) {
 			memcpy(blocking_thread_cmd_buffer, data - 1, len + 1);
 			blocking_thread_cmd_len = len;
@@ -742,21 +668,6 @@ void commands_send_experiment_samples(float *samples, int len) {
 		buffer_append_int32(buffer, (int32_t)(samples[i] * 10000.0), &index);
 	}
 
-	commands_send_packet(buffer, index);
-}
-
-void commands_fwd_can_frame(int len, unsigned char *data, uint32_t id, bool is_extended) {
-	if (len > 8) {
-		len = 8;
-	}
-
-	uint8_t buffer[len + 6];
-	int32_t index = 0;
-	buffer[index++] = COMM_CAN_FWD_FRAME;
-	buffer_append_uint32(buffer, id, &index);
-	buffer[index++] = is_extended;
-	memcpy(buffer + index, data, len);
-	index += len;
 	commands_send_packet(buffer, index);
 }
 
@@ -1089,47 +1000,12 @@ static THD_FUNCTION(blocking_thread, arg) {
 			}
 		} break;
 
-		case COMM_DETECT_APPLY_ALL_FOC: {
-			int32_t ind = 0;
-			bool detect_can = data[ind++];
-			float max_power_loss = buffer_get_float32(data, 1e3, &ind);
-			float min_current_in = buffer_get_float32(data, 1e3, &ind);
-			float max_current_in = buffer_get_float32(data, 1e3, &ind);
-			float openloop_rpm = buffer_get_float32(data, 1e3, &ind);
-			float sl_erpm = buffer_get_float32(data, 1e3, &ind);
-
-			int res = conf_general_detect_apply_all_foc_can(detect_can, max_power_loss,
-					min_current_in, max_current_in, openloop_rpm, sl_erpm);
-
-			ind = 0;
-			send_buffer[ind++] = COMM_DETECT_APPLY_ALL_FOC;
-			buffer_append_int16(send_buffer, res, &ind);
-			if (send_func_blocking) {
-				send_func_blocking(send_buffer, ind);
-			}
-		} break;
-
 		case COMM_TERMINAL_CMD:
 			data[len] = '\0';
 			chMtxLock(&terminal_mutex);
 			terminal_process_string((char*)data);
 			chMtxUnlock(&terminal_mutex);
 			break;
-
-		case COMM_PING_CAN: {
-			int32_t ind = 0;
-			send_buffer[ind++] = COMM_PING_CAN;
-
-			for (uint8_t i = 0;i < 255;i++) {
-				if (comm_can_ping(i)) {
-					send_buffer[ind++] = i;
-				}
-			}
-
-			if (send_func_blocking) {
-				send_func_blocking(send_buffer, ind);
-			}
-		} break;
 
 		default:
 			break;
