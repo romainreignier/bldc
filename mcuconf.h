@@ -230,9 +230,9 @@
 #define STM32_ICU_USE_TIM2                  FALSE
 #ifdef HW_USE_SERVO_TIM4
 #define STM32_ICU_USE_TIM3                  FALSE
-#define STM32_ICU_USE_TIM4                  TRUE
+#define STM32_ICU_USE_TIM4                  FALSE
 #else
-#define STM32_ICU_USE_TIM3                  TRUE
+#define STM32_ICU_USE_TIM3                  FALSE
 #define STM32_ICU_USE_TIM4                  FALSE
 #endif
 #define STM32_ICU_USE_TIM5                  FALSE
@@ -375,7 +375,7 @@
 /*
  * USB driver system settings.
  */
-#define STM32_USB_USE_OTG1                  TRUE
+#define STM32_USB_USE_OTG1                  FALSE
 #define STM32_USB_USE_OTG2                  FALSE
 #define STM32_USB_OTG1_IRQ_PRIORITY         14
 #define STM32_USB_OTG2_IRQ_PRIORITY         14

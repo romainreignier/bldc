@@ -33,7 +33,6 @@
 #include "drv8320s.h"
 #include "drv8323s.h"
 #include "buffer.h"
-#include "gpdrive.h"
 #include "comm_can.h"
 #include "shutdown.h"
 #include "app.h"
@@ -181,29 +180,6 @@ void mc_interface_init(mc_configuration *configuration) {
 		encoder_init_as5047p_spi();
 		break;
 
-	case SENSOR_PORT_MODE_AD2S1205:
-		encoder_init_ad2s1205_spi();
-		break;
-
-	case SENSOR_PORT_MODE_SINCOS:
-		encoder_init_sincos(m_conf.foc_encoder_sin_gain, m_conf.foc_encoder_sin_offset,
-							m_conf.foc_encoder_cos_gain, m_conf.foc_encoder_cos_offset,
-							m_conf.foc_encoder_sincos_filter_constant);
-		break;
-
-	case SENSOR_PORT_MODE_TS5700N8501:
-	case SENSOR_PORT_MODE_TS5700N8501_MULTITURN:
-		conf_general_read_app_configuration(&m_tmp_appconf);
-		if (m_tmp_appconf.app_to_use == APP_ADC ||
-				m_tmp_appconf.app_to_use == APP_UART ||
-				m_tmp_appconf.app_to_use == APP_PPM_UART ||
-				m_tmp_appconf.app_to_use == APP_ADC_UART) {
-			m_tmp_appconf.app_to_use = APP_NONE;
-			conf_general_store_app_configuration(&m_tmp_appconf);
-		}
-		encoder_init_ts5700n8501();
-		break;
-
 	default:
 		break;
 	}
@@ -218,10 +194,6 @@ void mc_interface_init(mc_configuration *configuration) {
 
 	case MOTOR_TYPE_FOC:
 		mcpwm_foc_init(&m_conf);
-		break;
-
-	case MOTOR_TYPE_GPD:
-		gpdrive_init(&m_conf);
 		break;
 
 	default:
@@ -245,30 +217,6 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 		case SENSOR_PORT_MODE_AS5047_SPI:
 			encoder_init_as5047p_spi();
 			break;
-
-		case SENSOR_PORT_MODE_AD2S1205:
-			encoder_init_ad2s1205_spi();
-			break;
-
-		case SENSOR_PORT_MODE_SINCOS:
-			encoder_init_sincos(m_conf.foc_encoder_sin_gain, m_conf.foc_encoder_sin_offset,
-								m_conf.foc_encoder_cos_gain, m_conf.foc_encoder_cos_offset,
-								m_conf.foc_encoder_sincos_filter_constant);
-			break;
-
-		case SENSOR_PORT_MODE_TS5700N8501:
-		case SENSOR_PORT_MODE_TS5700N8501_MULTITURN: {
-			m_tmp_appconf = *app_get_configuration();
-			if (m_tmp_appconf.app_to_use == APP_ADC ||
-					m_tmp_appconf.app_to_use == APP_UART ||
-					m_tmp_appconf.app_to_use == APP_PPM_UART ||
-					m_tmp_appconf.app_to_use == APP_ADC_UART) {
-				m_tmp_appconf.app_to_use = APP_NONE;
-				conf_general_store_app_configuration(&m_tmp_appconf);
-				app_set_configuration(&m_tmp_appconf);
-			}
-			encoder_init_ts5700n8501();
-		} break;
 
 		default:
 			break;
@@ -294,7 +242,6 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 	if (m_conf.motor_type != configuration->motor_type) {
 		mcpwm_deinit();
 		mcpwm_foc_deinit();
-		gpdrive_deinit();
 
 		m_conf = *configuration;
 
@@ -306,10 +253,6 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 
 		case MOTOR_TYPE_FOC:
 			mcpwm_foc_init(&m_conf);
-			break;
-
-		case MOTOR_TYPE_GPD:
-			gpdrive_init(&m_conf);
 			break;
 
 		default:
@@ -331,10 +274,6 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 		mcpwm_foc_set_configuration(&m_conf);
 		break;
 
-	case MOTOR_TYPE_GPD:
-		gpdrive_set_configuration(&m_conf);
-		break;
-
 	default:
 		break;
 	}
@@ -350,10 +289,6 @@ bool mc_interface_dccal_done(void) {
 
 	case MOTOR_TYPE_FOC:
 		ret = mcpwm_foc_is_dccal_done();
-		break;
-
-	case MOTOR_TYPE_GPD:
-		ret = gpdrive_is_dccal_done();
 		break;
 
 	default:
@@ -587,11 +522,6 @@ void mc_interface_set_brake_current(float current) {
 		mcpwm_foc_set_brake_current(DIR_MULT * current);
 		break;
 
-	case MOTOR_TYPE_GPD:
-		// For timeout to stop the output
-		gpdrive_set_mode(GPD_OUTPUT_MODE_NONE);
-		break;
-
 	default:
 		break;
 	}
@@ -737,10 +667,6 @@ float mc_interface_get_sampling_frequency_now(void) {
 
 	case MOTOR_TYPE_FOC:
 		ret = mcpwm_foc_get_sampling_frequency_now();
-		break;
-
-	case MOTOR_TYPE_GPD:
-		ret = gpdrive_get_switching_frequency_now();
 		break;
 
 	default:
@@ -1060,10 +986,6 @@ float mc_interface_get_last_inj_adc_isr_duration(void) {
 		ret = mcpwm_foc_get_last_adc_isr_duration();
 		break;
 
-	case MOTOR_TYPE_GPD:
-		ret = gpdrive_get_last_adc_isr_duration();
-		break;
-
 	default:
 		break;
 	}
@@ -1072,10 +994,6 @@ float mc_interface_get_last_inj_adc_isr_duration(void) {
 }
 
 float mc_interface_read_reset_avg_motor_current(void) {
-	if (m_conf.motor_type == MOTOR_TYPE_GPD) {
-		return gpdrive_get_current_filtered();
-	}
-
 	float res = m_motor_current_sum / m_motor_current_iterations;
 	m_motor_current_sum = 0.0;
 	m_motor_current_iterations = 0.0;
@@ -1083,10 +1001,6 @@ float mc_interface_read_reset_avg_motor_current(void) {
 }
 
 float mc_interface_read_reset_avg_input_current(void) {
-	if (m_conf.motor_type == MOTOR_TYPE_GPD) {
-		return gpdrive_get_current_filtered() * gpdrive_get_modulation();
-	}
-
 	float res = m_input_current_sum / m_input_current_iterations;
 	m_input_current_sum = 0.0;
 	m_input_current_iterations = 0.0;
@@ -1447,10 +1361,6 @@ void mc_interface_fault_stop(mc_fault_code fault) {
 
 	case MOTOR_TYPE_FOC:
 		mcpwm_foc_stop_pwm();
-		break;
-
-	case MOTOR_TYPE_GPD:
-		gpdrive_set_mode(GPD_OUTPUT_MODE_NONE);
 		break;
 
 	default:
@@ -2022,26 +1932,6 @@ static THD_FUNCTION(timer_thread, arg) {
 			mc_interface_fault_stop(FAULT_CODE_ENCODER_SPI);
 		}
 
-		if(m_conf.motor_type == MOTOR_TYPE_FOC &&
-			m_conf.foc_sensor_mode == FOC_SENSOR_MODE_ENCODER &&
-			m_conf.m_sensor_port_mode == SENSOR_PORT_MODE_SINCOS) {
-
-			if (encoder_sincos_get_signal_below_min_error_rate() > 0.05)
-				mc_interface_fault_stop(FAULT_CODE_ENCODER_SINCOS_BELOW_MIN_AMPLITUDE);
-			if (encoder_sincos_get_signal_above_max_error_rate() > 0.05)
-				mc_interface_fault_stop(FAULT_CODE_ENCODER_SINCOS_ABOVE_MAX_AMPLITUDE);
-		}
-
-		if(m_conf.motor_type == MOTOR_TYPE_FOC &&
-			m_conf.foc_sensor_mode == FOC_SENSOR_MODE_ENCODER &&
-			m_conf.m_sensor_port_mode == SENSOR_PORT_MODE_AD2S1205) {
-			if (encoder_resolver_loss_of_tracking_error_rate() > 0.05)
-				mc_interface_fault_stop(FAULT_CODE_RESOLVER_LOT);
-			if (encoder_resolver_degradation_of_signal_error_rate() > 0.05)
-				mc_interface_fault_stop(FAULT_CODE_RESOLVER_DOS);
-			if (encoder_resolver_loss_of_signal_error_rate() > 0.04)
-				mc_interface_fault_stop(FAULT_CODE_RESOLVER_LOS);
-		}
 		// TODO: Implement for BLDC and GPDRIVE
 		if(m_conf.motor_type == MOTOR_TYPE_FOC) {
 			int curr0_offset;

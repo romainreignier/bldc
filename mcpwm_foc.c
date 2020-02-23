@@ -38,7 +38,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "virtual_motor.h"
 #include "digital_filter.h"
 
 // Private types
@@ -304,7 +303,6 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	m_hfi_plot_en = 0;
 
 	update_hfi_samples(m_conf->foc_hfi_samples);
-	virtual_motor_init();
 
 	LL_TIM_DeInit(TIM1);
 	LL_TIM_DeInit(TIM8);
@@ -1796,8 +1794,6 @@ void mcpwm_foc_tim_sample_int_handler(void) {
 	if (m_init_done) {
 		// Generate COM event here for synchronization
 		LL_TIM_GenerateEvent_COM(TIM1);
-
-		virtual_motor_int_handler(m_motor_state.v_alpha, m_motor_state.v_beta);
 	}
 }
 
@@ -1952,11 +1948,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 	float enc_ang = 0;
 	if (encoder_is_configured()) {
-		if(virtual_motor_is_connected()){
-			enc_ang = virtual_motor_get_angle_deg();
-		}else{
-			enc_ang = encoder_read_deg();
-		}
+		enc_ang = encoder_read_deg();
 
 		float phase_tmp = enc_ang;
 		if (m_conf->foc_encoder_inverted) {
@@ -2350,11 +2342,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 	// TODO: Have another look at this.
 	float angle_now = 0.0;
 	if (encoder_is_configured()) {
-		if (m_conf->m_sensor_port_mode == SENSOR_PORT_MODE_TS5700N8501_MULTITURN) {
-			angle_now = encoder_read_deg_multiturn();
-		} else {
-			angle_now = enc_ang;
-		}
+		angle_now = enc_ang;
 	} else {
 		angle_now = m_motor_state.phase * (180.0 / M_PI);
 	}
@@ -2956,11 +2944,8 @@ static void control_current(volatile motor_state_t *state_m, float dt) {
 	svm(-mod_alpha, -mod_beta, top, &duty1, &duty2, &duty3, (uint32_t*)&state_m->svm_sector);
 	TIMER_UPDATE_DUTY(duty1, duty2, duty3);
 
-	// do not allow to turn on PWM outputs if virtual motor is used
-	if(virtual_motor_is_connected() == false) {
-		if (!m_output_on) {
-			start_pwm_hw();
-		}
+	if (!m_output_on) {
+		start_pwm_hw();
 	}
 }
 

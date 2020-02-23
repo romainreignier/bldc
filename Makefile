@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 -std=gnu99 -D_GNU_SOURCE
+  USE_OPT = -Os -ggdb -fomit-frame-pointer -falign-functions=16 -std=gnu99 -D_GNU_SOURCE
   USE_OPT += -DBOARD_OTG_NOVBUSSENS $(build_args)
   USE_OPT += -fsingle-precision-constant -Wdouble-promotion
 endif
@@ -42,7 +42,7 @@ endif
 
 # Enable this if you want to see the full log while compiling.
 ifeq ($(USE_VERBOSE_COMPILE),)
-  USE_VERBOSE_COMPILE = yes
+  USE_VERBOSE_COMPILE = no
 endif
 
 # If enabled, this option makes the build process faster by not compiling
@@ -109,11 +109,7 @@ include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Other files
 include hwconf/hwconf.mk
 include applications/applications.mk
-include nrf/nrf.mk
 include libcanard/canard.mk
-include imu/imu.mk
-include compression/compression.mk
-include blackmagic/blackmagic.mk
 include st_drivers/STM32F4xx_LL_Driver/stm32ll.mk
 include Legacy/stlegacy.mk
 
@@ -127,17 +123,13 @@ CSRC = $(ALLCSRC) \
        $(CHIBIOS)/os/various/syscalls.c \
        board.c \
        main.c \
-       comm_usb_serial.c \
        irq_handlers.c \
        buffer.c \
-       comm_usb.c \
        crc.c \
        digital_filter.c \
        ledpwm.c \
        mcpwm.c \
-       servo_dec.c \
        utils.c \
-       servo_simple.c \
        packet.c \
        terminal.c \
        conf_general.c \
@@ -145,26 +137,17 @@ CSRC = $(ALLCSRC) \
        commands.c \
        timeout.c \
        comm_can.c \
-       ws2811.c \
-       led_external.c \
        encoder.c \
        flash_helper.c \
        mc_interface.c \
        mcpwm_foc.c \
-       gpdrive.c \
        confgenerator.c \
        timer.c \
-       i2c_bb.c \
-       virtual_motor.c \
        shutdown.c \
        stdperiph_stm32f4/src/stm32f4xx_flash.c \
        $(HWSRC) \
        $(APPSRC) \
-       $(NRFSRC) \
        $(CANARDSRC) \
-       $(IMUSRC) \
-       $(COMPRESSIONSRC) \
-       $(BLACKMAGICSRC) \
        $(STM32LLSRC) \
        $(STLEGACYSRC)
 

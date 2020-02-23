@@ -1051,12 +1051,6 @@ static THD_FUNCTION(cancom_process_thread, arg) {
 						}
 					} break;
 
-					case CAN_PACKET_POLL_TS5700N8501_STATUS: {
-						comm_can_transmit_eid(app_get_configuration()->controller_id |
-								((uint32_t)CAN_PACKET_POLL_TS5700N8501_STATUS << 8),
-								encoder_ts5700n8501_get_raw_status(), 8);
-					} break;
-
 					default:
 						break;
 					}

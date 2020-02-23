@@ -115,23 +115,6 @@
 #define HW_UART_RX_PORT			GPIOC
 #define HW_UART_RX_PIN			7
 
-// ICU Peripheral for servo decoding
-#define HW_ICU_TIMER			TIM3
-#define HW_ICU_TIM_CLK_EN()		LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3)
-#define HW_ICU_DEV				ICUD3
-#define HW_ICU_CHANNEL			ICU_CHANNEL_2
-#define HW_ICU_GPIO_AF			LL_GPIO_AF_2
-#define HW_ICU_GPIO				GPIOB
-#define HW_ICU_PIN				5
-
-// I2C Peripheral
-#define HW_I2C_DEV				I2CD2
-#define HW_I2C_GPIO_AF			LL_GPIO_AF_4
-#define HW_I2C_SCL_PORT			GPIOB
-#define HW_I2C_SCL_PIN			10
-#define HW_I2C_SDA_PORT			GPIOB
-#define HW_I2C_SDA_PIN			11
-
 // Hall/encoder pins
 #define HW_HALL_ENC_GPIO1		GPIOB
 #define HW_HALL_ENC_PIN1		6
