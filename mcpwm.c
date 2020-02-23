@@ -287,10 +287,14 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2 | LL_AHB1_GRP1_PERIPH_GPIOA | LL_AHB1_GRP1_PERIPH_GPIOC);
 	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1 | LL_APB2_GRP1_PERIPH_ADC2 | LL_APB2_GRP1_PERIPH_ADC3);
 
+	/*
 	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
 			5,
 			(stm32_dmaisr_t)mcpwm_adc_int_handler,
 			(void *)0);
+	*/
+	NVIC_SetPriority(DMA2_Stream4_IRQn, 5);
+	NVIC_EnableIRQ(DMA2_Stream4_IRQn);
 
 	// DMA for the ADC
 	DMA_InitStructure.Channel = LL_DMA_CHANNEL_0;
@@ -310,11 +314,11 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	DMA_InitStructure.PeriphBurst = LL_DMA_PBURST_SINGLE;
 	LL_DMA_Init(DMA2, LL_DMA_STREAM_4, &DMA_InitStructure);
 
-	// DMA2_Stream0 enable
-	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_4);
-
 	// Enable transfer complete interrupt
 	LL_DMA_EnableIT_TC(DMA2, LL_DMA_STREAM_4);
+
+	// DMA2_Stream0 enable
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_4);
 
 	// ADC Common Init
 	// Note that the ADC is running at 42MHz, which is higher than the
@@ -476,7 +480,8 @@ void mcpwm_deinit(void) {
 	LL_ADC_CommonDeInit(__LL_ADC_COMMON_INSTANCE(ADC1));
 	LL_DMA_DeInit(DMA2, LL_DMA_STREAM_4);
 	nvicDisableVector(ADC_IRQn);
-	dmaStreamFree(STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 4)));
+	//dmaStreamFree(STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 4)));
+	NVIC_DisableIRQ(DMA2_Stream4_IRQn);
 }
 
 bool mcpwm_init_done(void) {
@@ -1741,9 +1746,9 @@ void mcpwm_adc_inj_int_handler(void) {
 /*
  * New ADC samples ready. Do commutation!
  */
-void mcpwm_adc_int_handler(void *p, uint32_t flags) {
-	(void)p;
-	(void)flags;
+void mcpwm_adc_int_handler(/*void *p, uint32_t flags*/) {
+	/*(void)p;
+	(void)flags;*/
 
 	uint32_t t_start = timer_time_now();
 

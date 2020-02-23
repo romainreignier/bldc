@@ -73,7 +73,7 @@ void drv8323s_dccal_off(void);
 
 // Interrupt handlers
 void mcpwm_adc_inj_int_handler(void);
-void mcpwm_adc_int_handler(void *p, uint32_t flags);
+void mcpwm_adc_int_handler(void/*void *p, uint32_t flags*/);
 
 // External variables
 extern volatile float mcpwm_detect_currents[];

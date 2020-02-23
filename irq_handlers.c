@@ -4,18 +4,18 @@
 	This file is part of the VESC firmware.
 
 	The VESC firmware is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    The VESC firmware is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	The VESC firmware is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-    */
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	*/
 
 #include "ch.h"
 #include "hal.h"
@@ -31,6 +31,21 @@ CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 	LL_ADC_ClearFlag_JEOS(ADC1);
 	mc_interface_adc_inj_int_handler();
 	CH_IRQ_EPILOGUE();
+}
+
+CH_IRQ_HANDLER(DMA2_Stream4_IRQHandler) {
+	CH_IRQ_PROLOGUE();
+	/* Check whether DMA transfer complete caused the DMA interruption */
+	if(LL_DMA_IsActiveFlag_TC4(DMA2) == 1)
+	{
+		/* Call interruption treatment function */
+		mc_interface_adc_complete_int_handler();
+
+		/* Clear flag DMA transfer complete */
+		LL_DMA_ClearFlag_TC4(DMA2);
+	}
+
+  CH_IRQ_EPILOGUE();
 }
 
 CH_IRQ_HANDLER(HW_ENC_EXTI_ISR_VEC) {

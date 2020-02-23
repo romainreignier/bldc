@@ -27,7 +27,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = 
+  USE_LDOPT =
 endif
 
 # Enable this if you want link time optimizations (LTO)
@@ -107,6 +107,7 @@ include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Other files
+include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include hwconf/hwconf.mk
 include applications/applications.mk
 include st_drivers/STM32F4xx_LL_Driver/stm32ll.mk
@@ -118,7 +119,6 @@ LDSCRIPT= ld_eeprom_emu.ld
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(ALLCSRC) \
-       $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
        $(CHIBIOS)/os/various/syscalls.c \
        board.c \
        main.c \
@@ -160,7 +160,6 @@ ASMXSRC = $(ALLXASMSRC)
 
 INCDIR = $(ALLINC) \
          $(CHIBIOS)/os/various \
-         $(CHIBIOS)/os/hal/lib/streams \
          mcconf \
          appconf \
          stdperiph_stm32f4/inc \

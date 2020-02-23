@@ -635,7 +635,8 @@ void commands_printf(const char* format, ...) {
 	static char print_buffer[255];
 
 	print_buffer[0] = COMM_PRINT;
-	len = vsnprintf(print_buffer + 1, 254, format, arg);
+	len = chvsnprintf(print_buffer + 1, 254, format, arg);
+	//len = vsnprintf(print_buffer + 1, 254, format, arg);
 	va_end (arg);
 
 	if(len > 0) {

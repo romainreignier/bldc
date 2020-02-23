@@ -98,10 +98,6 @@ static volatile int m_sample_now;
 static volatile int m_sample_trigger;
 static volatile float m_last_adc_duration_sample;
 
-#if !WS2811_ENABLE
-static app_configuration m_tmp_appconf;
-#endif
-
 // Private functions
 static void update_override_limits(volatile mc_configuration *conf);
 
@@ -1616,6 +1612,22 @@ void mc_interface_mc_timer_isr(void) {
 
 			m_last_adc_duration_sample = mc_interface_get_last_inj_adc_isr_duration();
 		}
+	}
+}
+
+void mc_interface_adc_complete_int_handler(void) {
+	switch (m_conf.motor_type) {
+	case MOTOR_TYPE_BLDC:
+	case MOTOR_TYPE_DC:
+		mcpwm_adc_int_handler();
+		break;
+
+	case MOTOR_TYPE_FOC:
+		mcpwm_foc_adc_int_handler();
+		break;
+
+	default:
+		break;
 	}
 }
 

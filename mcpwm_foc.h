@@ -85,7 +85,7 @@ bool mcpwm_foc_is_using_encoder(void);
 
 // Interrupt handlers
 void mcpwm_foc_tim_sample_int_handler(void);
-void mcpwm_foc_adc_int_handler(void *p, uint32_t flags);
+void mcpwm_foc_adc_int_handler(void /*void *p, uint32_t flags*/);
 
 // Defines
 #define MCPWM_FOC_CURRENT_SAMP_OFFSET				(2) // Offset from timer top for injected ADC samples
