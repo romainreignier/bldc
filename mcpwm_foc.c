@@ -371,7 +371,7 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2 | LL_AHB1_GRP1_PERIPH_GPIOA | LL_AHB1_GRP1_PERIPH_GPIOC);
 	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1 | LL_APB2_GRP1_PERIPH_ADC2 | LL_APB2_GRP1_PERIPH_ADC3);
 
-	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
+	dmaStreamAllocI(STM32_DMA_STREAM_ID(2, 4),
 			5,
 			(stm32_dmaisr_t)mcpwm_foc_adc_int_handler,
 			(void *)0);

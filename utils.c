@@ -608,6 +608,13 @@ void utils_sys_lock_cnt(void) {
 	sys_lock_cnt++;
 }
 
+void utils_sys_lock_from_isr_cnt(void) {
+	if (!sys_lock_cnt) {
+		chSysLockFromISR();
+	}
+	sys_lock_cnt++;
+}
+
 /**
  * A system unlocking function with a counter. For every lock, a corresponding unlock must
  * exist to unlock the system. That means, if lock is called five times, unlock has to
@@ -619,6 +626,15 @@ void utils_sys_unlock_cnt(void) {
 		sys_lock_cnt--;
 		if (!sys_lock_cnt) {
 			chSysUnlock();
+		}
+	}
+}
+
+void utils_sys_unlock_from_isr_cnt(void) {
+	if (sys_lock_cnt) {
+		sys_lock_cnt--;
+		if (!sys_lock_cnt) {
+			chSysUnlockFromISR();
 		}
 	}
 }

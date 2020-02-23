@@ -287,7 +287,7 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2 | LL_AHB1_GRP1_PERIPH_GPIOA | LL_AHB1_GRP1_PERIPH_GPIOC);
 	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1 | LL_APB2_GRP1_PERIPH_ADC2 | LL_APB2_GRP1_PERIPH_ADC3);
 
-	dmaStreamAlloc(STM32_DMA_STREAM_ID(2, 4),
+	dmaStreamAllocI(STM32_DMA_STREAM_ID(2, 4),
 			5,
 			(stm32_dmaisr_t)mcpwm_adc_int_handler,
 			(void *)0);
@@ -1748,7 +1748,9 @@ void mcpwm_adc_int_handler(void *p, uint32_t flags) {
 	uint32_t t_start = timer_time_now();
 
 	// Set the next timer settings if an update is far enough away
+	utils_sys_lock_from_isr_cnt();
 	update_timer_attempt();
+	utils_sys_unlock_from_isr_cnt();
 
 	// Reset the watchdog
 	timeout_feed_WDT(THREAD_MCPWM);
@@ -1790,7 +1792,9 @@ void mcpwm_adc_int_handler(void *p, uint32_t flags) {
 			ph3_raw = ADC_V_L2;
 		}
 
+		utils_sys_lock_from_isr_cnt();
 		update_timer_attempt();
+		utils_sys_unlock_from_isr_cnt();
 
 		float amp = 0.0;
 
@@ -2628,7 +2632,9 @@ static void set_next_timer_settings(mc_timer_struct *settings) {
 	timer_struct.updated = false;
 	utils_sys_unlock_cnt();
 
+	utils_sys_lock_cnt();
 	update_timer_attempt();
+	utils_sys_unlock_cnt();
 }
 
 /**
@@ -2636,8 +2642,6 @@ static void set_next_timer_settings(mc_timer_struct *settings) {
  * the best I can come up with.
  */
 static void update_timer_attempt(void) {
-	utils_sys_lock_cnt();
-
 	// Set the next timer settings if an update is far enough away
 	if (!timer_struct.updated && TIM1->CNT > 10 && TIM1->CNT < (TIM1->ARR - 500)) {
 		// Disable preload register updates
@@ -2661,8 +2665,6 @@ static void update_timer_attempt(void) {
 		TIM8->CR1 &= ~TIM_CR1_UDIS;
 		timer_struct.updated = true;
 	}
-
-	utils_sys_unlock_cnt();
 }
 
 static void set_switching_frequency(float frequency) {

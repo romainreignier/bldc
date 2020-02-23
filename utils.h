@@ -49,6 +49,8 @@ void utils_byte_to_binary(int x, char *b);
 float utils_throttle_curve(float val, float curve_acc, float curve_brake, int mode);
 void utils_sys_lock_cnt(void);
 void utils_sys_unlock_cnt(void);
+void utils_sys_lock_from_isr_cnt(void);
+void utils_sys_unlock_from_isr_cnt(void);
 uint32_t utils_crc32c(uint8_t *data, uint32_t len);
 void utils_fft32_bin0(float *real_in, float *real, float *imag);
 void utils_fft32_bin1(float *real_in, float *real, float *imag);
