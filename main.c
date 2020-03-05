@@ -206,6 +206,17 @@ int main(void) {
 	chThdSleepMilliseconds(100);
 
 	hw_init_gpio();
+
+
+	for(int i = 0 ; i < 4; i++) {
+	LED_RED_ON();
+	LED_GREEN_OFF();
+	chThdSleepMilliseconds(100);
+	LED_RED_OFF();
+	LED_GREEN_ON();
+	chThdSleepMilliseconds(100);
+	}
+
 	LED_RED_OFF();
 	LED_GREEN_OFF();
 
