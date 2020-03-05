@@ -58,6 +58,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_rcc.h"
 
+#ifndef assert_param
+#define assert_param(expr) ((void)0)
+#endif
+
 #if !defined  (HSE_STARTUP_TIMEOUT) 
 #define HSE_STARTUP_TIMEOUT    ((uint16_t)0x05000)
 #endif
