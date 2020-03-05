@@ -111,9 +111,9 @@ static void update_override_limits(volatile mc_configuration *conf);
 static void(*pwn_done_func)(void) = 0;
 
 // Threads
-static THD_WORKING_AREA(timer_thread_wa, 1024);
+static THD_WORKING_AREA(timer_thread_wa, 64);
 static THD_FUNCTION(timer_thread, arg);
-static THD_WORKING_AREA(sample_send_thread_wa, 1024);
+static THD_WORKING_AREA(sample_send_thread_wa, 64);
 static THD_FUNCTION(sample_send_thread, arg);
 static thread_t *sample_send_tp;
 

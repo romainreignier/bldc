@@ -74,9 +74,9 @@
  */
 
 // Private variables
-static THD_WORKING_AREA(periodic_thread_wa, 1024);
-static THD_WORKING_AREA(timer_thread_wa, 128);
-static THD_WORKING_AREA(flash_integrity_check_thread_wa, 256);
+static THD_WORKING_AREA(periodic_thread_wa, 64);
+static THD_WORKING_AREA(timer_thread_wa, 64);
+static THD_WORKING_AREA(flash_integrity_check_thread_wa, 64);
 
 static THD_FUNCTION(flash_integrity_check_thread, arg) {
 	(void)arg;

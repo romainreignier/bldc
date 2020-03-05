@@ -54,7 +54,7 @@
 
 // Threads
 static THD_FUNCTION(blocking_thread, arg);
-static THD_WORKING_AREA(blocking_thread_wa, 2048);
+static THD_WORKING_AREA(blocking_thread_wa, 1200);
 static thread_t *blocking_tp;
 
 // Private variables
