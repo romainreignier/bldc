@@ -40,7 +40,11 @@
 #endif
 
 #if !defined(STM32_HSECLK)
+#ifdef HW_USE_25M_XTAL
+#define STM32_HSECLK                25000000U
+#else
 #define STM32_HSECLK                8000000U
+#endif
 #endif
 
 /*

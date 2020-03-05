@@ -64,6 +64,10 @@
 #define HW_SOURCE "hw_410.c" // Also for 4.11 and 4.12
 #define HW_HEADER "hw_410.h" // Also for 4.11 and 4.12
 
+// Mini blue dev board based on F407VET6
+//#define HW_SOURCE "hw_mini407ve.c"
+//#define HW_HEADER "hw_mini407ve.h"
+
 // Benjamins first HW60 PCB with PB5 and PB6 swapped
 //#define HW60_VEDDER_FIRST_PCB
 
