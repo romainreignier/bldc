@@ -25,14 +25,26 @@
 #include "mcpwm_foc.h"
 #include "hw.h"
 #include "encoder.h"
-#include "stm32f4xx_ll_tim.h"
 
+//#define USE_OLD
 #define USE_ST_LL
+
+#if defined(USE_ST_LL)
+#include "stm32f4xx_ll_adc.h"
+#include "stm32f4xx_ll_tim.h"
+#endif
 
 CH_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
 	CH_IRQ_PROLOGUE();
+#ifdef USE_OLD
 	ADC_ClearITPendingBit(ADC1, ADC_IT_JEOC);
 	mc_interface_adc_inj_int_handler();
+#elif defined(USE_ST_LL)
+	if(LL_ADC_IsActiveFlag_JEOS(ADC1) != 0) {
+		LL_ADC_ClearFlag_JEOS(ADC1);
+		mc_interface_adc_inj_int_handler();
+	}
+#endif
 	CH_IRQ_EPILOGUE();
 }
 
