@@ -33,7 +33,6 @@
 #include "drv8320s.h"
 #include "drv8323s.h"
 #include "buffer.h"
-#include "shutdown.h"
 #include "app.h"
 #include "utils.h"
 
@@ -105,9 +104,9 @@ static void update_override_limits(volatile mc_configuration *conf);
 static void(*pwn_done_func)(void) = 0;
 
 // Threads
-static THD_WORKING_AREA(timer_thread_wa, 1024);
+static THD_WORKING_AREA(timer_thread_wa, 64);
 static THD_FUNCTION(timer_thread, arg);
-static THD_WORKING_AREA(sample_send_thread_wa, 1024);
+static THD_WORKING_AREA(sample_send_thread_wa, 64);
 static THD_FUNCTION(sample_send_thread, arg);
 static thread_t *sample_send_tp;
 
@@ -376,10 +375,6 @@ mc_state mc_interface_get_state(void) {
 }
 
 void mc_interface_set_duty(float dutyCycle) {
-	if (fabsf(dutyCycle) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -400,10 +395,6 @@ void mc_interface_set_duty(float dutyCycle) {
 }
 
 void mc_interface_set_duty_noramp(float dutyCycle) {
-	if (fabsf(dutyCycle) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -424,10 +415,6 @@ void mc_interface_set_duty_noramp(float dutyCycle) {
 }
 
 void mc_interface_set_pid_speed(float rpm) {
-	if (fabsf(rpm) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -448,8 +435,6 @@ void mc_interface_set_pid_speed(float rpm) {
 }
 
 void mc_interface_set_pid_pos(float pos) {
-	SHUTDOWN_RESET();
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -475,10 +460,6 @@ void mc_interface_set_pid_pos(float pos) {
 }
 
 void mc_interface_set_current(float current) {
-	if (fabsf(current) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -499,10 +480,6 @@ void mc_interface_set_current(float current) {
 }
 
 void mc_interface_set_brake_current(float current) {
-	if (fabsf(current) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -529,10 +506,6 @@ void mc_interface_set_brake_current(float current) {
  * The relative current value, range [-1.0 1.0]
  */
 void mc_interface_set_current_rel(float val) {
-	if (fabsf(val) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	mc_interface_set_current(val * m_conf.lo_current_motor_max_now);
 }
 
@@ -543,10 +516,6 @@ void mc_interface_set_current_rel(float val) {
  * The relative current value, range [0.0 1.0]
  */
 void mc_interface_set_brake_current_rel(float val) {
-	if (fabsf(val) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	mc_interface_set_brake_current(val * fabsf(m_conf.lo_current_motor_min_now));
 }
 
@@ -557,10 +526,6 @@ void mc_interface_set_brake_current_rel(float val) {
  * The current value.
  */
 void mc_interface_set_handbrake(float current) {
-	if (fabsf(current) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	if (mc_interface_try_input()) {
 		return;
 	}
@@ -588,16 +553,10 @@ void mc_interface_set_handbrake(float current) {
  * The relative current value, range [0.0 1.0]
  */
 void mc_interface_set_handbrake_rel(float val) {
-	if (fabsf(val) > 0.001) {
-		SHUTDOWN_RESET();
-	}
-
 	mc_interface_set_handbrake(val * fabsf(m_conf.lo_current_motor_min_now));
 }
 
 void mc_interface_brake_now(void) {
-	SHUTDOWN_RESET();
-
 	mc_interface_set_duty(0.0);
 }
 

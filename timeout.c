@@ -20,7 +20,6 @@
 #include "timeout.h"
 #include "mc_interface.h"
 #include "stm32f4xx_conf.h"
-#include "shutdown.h"
 
 // Private variables
 static volatile bool init_done = false;
@@ -31,7 +30,7 @@ static volatile bool has_timeout;
 static volatile uint32_t feed_counter[MAX_THREADS_MONITOR];
 
 // Threads
-static THD_WORKING_AREA(timeout_thread_wa, 512);
+static THD_WORKING_AREA(timeout_thread_wa, 64);
 static THD_FUNCTION(timeout_thread, arg);
 
 void timeout_init(void) {
@@ -107,10 +106,6 @@ void timeout_configure_IWDT_slowest(void) {
 		return;
 	}
 
-	// As we expect to lock the CPU for a couple of ms make sure that shutdown is not sampling the button input,
-	// as that can cause a shutdown.
-	SHUTDOWN_SET_SAMPLING_DISABLED(true);
-
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog
 		LL_IWDG_ReloadCounter(IWDG);
@@ -133,8 +128,6 @@ void timeout_configure_IWDT(void) {
 	if (!init_done) {
 		return;
 	}
-
-	SHUTDOWN_SET_SAMPLING_DISABLED(false);
 
 	while(((IWDG->SR & IWDG_SR_RVU) != 0) || ((IWDG->SR & IWDG_SR_PVU) != 0)) {
 		// Continue to kick the dog

@@ -34,7 +34,6 @@
 #include "packet.h"
 #include "encoder.h"
 #include "confgenerator.h"
-#include "shutdown.h"
 #include "stm32f4xx_flash.h"
 #include "flash_helper.h"
 
@@ -45,7 +44,7 @@
 
 // Threads
 static THD_FUNCTION(blocking_thread, arg);
-static THD_WORKING_AREA(blocking_thread_wa, 2048);
+static THD_WORKING_AREA(blocking_thread_wa, 1200);
 static thread_t *blocking_tp;
 
 // Private variables
@@ -173,8 +172,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		uint32_t new_app_offset = buffer_get_uint32(data, &ind);
 
 		uint16_t flash_res = flash_helper_write_new_app_data(new_app_offset, data + ind, len - ind);
-
-		SHUTDOWN_RESET();
 
 		ind = 0;
 		uint8_t send_buffer[50];
@@ -411,7 +408,6 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		break;
 
 	case COMM_ALIVE:
-		SHUTDOWN_RESET();
 		timeout_reset();
 		break;
 

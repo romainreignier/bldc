@@ -141,7 +141,6 @@ CSRC = $(ALLCSRC) \
        mcpwm_foc.c \
        confgenerator.c \
        timer.c \
-       shutdown.c \
        stdperiph_stm32f4/src/stm32f4xx_flash.c \
        $(HWSRC) \
        $(APPSRC) \
