@@ -496,10 +496,10 @@ void mcpwm_foc_init(volatile mc_configuration *configuration) {
 
 	// Start threads
 	timer_thd_stop = false;
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	//chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
 
 	hfi_thd_stop = false;
-	chThdCreateStatic(hfi_thread_wa, sizeof(hfi_thread_wa), NORMALPRIO, hfi_thread, NULL);
+	//chThdCreateStatic(hfi_thread_wa, sizeof(hfi_thread_wa), NORMALPRIO, hfi_thread, NULL);
 
 	// Check if the system has resumed from IWDG reset
 	if (timeout_had_IWDG_reset()) {
@@ -2382,7 +2382,7 @@ void mcpwm_foc_adc_int_handler(/*void *p, uint32_t flags*/) {
 static THD_FUNCTION(timer_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("foc timer");
+	//chRegSetThreadName("foc timer");
 
 	for(;;) {
 		const float dt = 0.001;
@@ -2478,7 +2478,7 @@ static THD_FUNCTION(timer_thread, arg) {
 static THD_FUNCTION(hfi_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("foc hfi");
+	//chRegSetThreadName("foc hfi");
 
 	for(;;) {
 		if (hfi_thd_stop) {

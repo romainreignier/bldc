@@ -446,8 +446,8 @@ void mcpwm_init(volatile mc_configuration *configuration) {
 	// Start threads
 	timer_thd_stop = false;
 	rpm_thd_stop = false;
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
-	chThdCreateStatic(rpm_thread_wa, sizeof(rpm_thread_wa), NORMALPRIO, rpm_thread, NULL);
+	//chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	//chThdCreateStatic(rpm_thread_wa, sizeof(rpm_thread_wa), NORMALPRIO, rpm_thread, NULL);
 
 	// Check if the system has resumed from IWDG reset
 	if (timeout_had_IWDG_reset()) {
@@ -1290,7 +1290,7 @@ static void run_pid_control_pos(float dt, float pos_now) {
 static THD_FUNCTION(rpm_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("rpm timer");
+	//chRegSetThreadName("rpm timer");
 
 	for (;;) {
 		if (rpm_thd_stop) {
@@ -1352,7 +1352,7 @@ static THD_FUNCTION(rpm_thread, arg) {
 static THD_FUNCTION(timer_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("mcpwm timer");
+	//chRegSetThreadName("mcpwm timer");
 
 	float amp;
 	float min_s;

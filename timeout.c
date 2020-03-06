@@ -73,7 +73,7 @@ void timeout_init(void) {
 
 	chThdSleepMilliseconds(10);
 
-	chThdCreateStatic(timeout_thread_wa, sizeof(timeout_thread_wa), NORMALPRIO, timeout_thread, NULL);
+	//chThdCreateStatic(timeout_thread_wa, sizeof(timeout_thread_wa), NORMALPRIO, timeout_thread, NULL);
 }
 
 void timeout_configure(systime_t timeout, float brake_current) {
@@ -82,7 +82,7 @@ void timeout_configure(systime_t timeout, float brake_current) {
 }
 
 void timeout_reset(void) {
-	last_update_time = chVTGetSystemTime();
+	last_update_time = chVTGetSystemTimeX();
 }
 
 bool timeout_has_timeout(void) {
@@ -162,7 +162,7 @@ bool timeout_had_IWDG_reset(void) {
 static THD_FUNCTION(timeout_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("Timeout");
+	//chRegSetThreadName("Timeout");
 
 	for(;;) {
 		if (timeout_msec != 0 && chVTTimeElapsedSinceX(last_update_time) > TIME_MS2I(timeout_msec)) {

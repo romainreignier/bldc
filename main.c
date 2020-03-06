@@ -66,7 +66,7 @@ static THD_WORKING_AREA(timer_thread_wa, 64);
 static THD_FUNCTION(periodic_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("Main periodic");
+	//chRegSetThreadName("Main periodic");
 
 	for(;;) {
 		if (mc_interface_get_state() == MC_STATE_RUNNING) {
@@ -134,7 +134,7 @@ static THD_FUNCTION(periodic_thread, arg) {
 static THD_FUNCTION(timer_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("msec_timer");
+	//chRegSetThreadName("msec_timer");
 
 	for(;;) {
 		packet_timerfunc();
@@ -151,6 +151,15 @@ void assert_failed(uint8_t* file, uint32_t line) {
 		chThdSleepMilliseconds(1);
 	}
 }
+
+/*
+ * Threads creation table, one entry per thread.
+ */
+THD_TABLE_BEGIN
+  THD_TABLE_THREAD(0, "Main periodic",     periodic_thread_wa,       periodic_thread,      NULL)
+  THD_TABLE_THREAD(1, "msec_timer",     timer_thread_wa,       timer_thread,      NULL)
+  //THD_TABLE_THREAD(4, "tester",       waThread3,       Thread3,      NULL)
+THD_TABLE_END
 
 int main(void) {
 	halInit();
@@ -194,8 +203,8 @@ int main(void) {
 	app_uartcomm_start_permanent();
 
 	// Threads
-	chThdCreateStatic(periodic_thread_wa, sizeof(periodic_thread_wa), NORMALPRIO, periodic_thread, NULL);
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	//(periodic_thread_wa, sizeof(periodic_thread_wa), NORMALPRIO, periodic_thread, NULL);
+	//chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
 
 	timeout_init();
 	timeout_configure(appconf.timeout_msec, appconf.timeout_brake_current);

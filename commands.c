@@ -56,15 +56,15 @@ static void(* volatile send_func)(unsigned char *data, unsigned int len) = 0;
 static void(* volatile send_func_blocking)(unsigned char *data, unsigned int len) = 0;
 static void(* volatile appdata_func)(unsigned char *data, unsigned int len) = 0;
 static disp_pos_mode display_position_mode;
-static mutex_t print_mutex;
-static mutex_t send_buffer_mutex;
-static mutex_t terminal_mutex;
+static binary_semaphore_t print_mutex;
+static binary_semaphore_t send_buffer_mutex;
+static binary_semaphore_t terminal_mutex;
 
 void commands_init(void) {
-	chMtxObjectInit(&print_mutex);
-	chMtxObjectInit(&send_buffer_mutex);
-	chMtxObjectInit(&terminal_mutex);
-	chThdCreateStatic(blocking_thread_wa, sizeof(blocking_thread_wa), NORMALPRIO, blocking_thread, NULL);
+	chBSemObjectInit(&print_mutex, false);
+	chBSemObjectInit(&send_buffer_mutex, false);
+	chBSemObjectInit(&terminal_mutex, false);
+	//chThdCreateStatic(blocking_thread_wa, sizeof(blocking_thread_wa), NORMALPRIO, blocking_thread, NULL);
 }
 
 /**
@@ -183,7 +183,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 	case COMM_GET_VALUES:
 	case COMM_GET_VALUES_SELECTIVE: {
 		int32_t ind = 0;
-		chMtxLock(&send_buffer_mutex);
+		chBSemWait(&send_buffer_mutex);
 		uint8_t *send_buffer = send_buffer_global;
 		send_buffer[ind++] = packet_id;
 
@@ -261,7 +261,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		}
 
 		reply_func(send_buffer, ind);
-		chMtxUnlock(&send_buffer_mutex);
+		chBSemSignal(&send_buffer_mutex);
 	} break;
 
 	case COMM_SET_DUTY: {
@@ -425,7 +425,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		float battery_level = mc_interface_get_battery_level(&wh_batt_left);
 
 		int32_t ind = 0;
-		chMtxLock(&send_buffer_mutex);
+		chBSemWait(&send_buffer_mutex);
 		uint8_t *send_buffer = send_buffer_global;
 		send_buffer[ind++] = packet_id;
 
@@ -498,7 +498,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 		}
 
 		reply_func(send_buffer, ind);
-		chMtxUnlock(&send_buffer_mutex);
+		chBSemSignal(&send_buffer_mutex);
 	} break;
 
 	case COMM_SET_MCCONF_TEMP:
@@ -574,9 +574,9 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 
 	case COMM_TERMINAL_CMD_SYNC:
 		data[len] = '\0';
-		chMtxLock(&terminal_mutex);
+		chBSemWait(&terminal_mutex);
 		terminal_process_string((char*)data);
-		chMtxUnlock(&terminal_mutex);
+		chBSemSignal(&terminal_mutex);
 		break;
 
 	case COMM_ERASE_BOOTLOADER: {
@@ -623,7 +623,7 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 }
 
 void commands_printf(const char* format, ...) {
-	chMtxLock(&print_mutex);
+	chBSemWait(&print_mutex);
 
 	va_list arg;
 	va_start (arg, format);
@@ -640,7 +640,7 @@ void commands_printf(const char* format, ...) {
 				(len < 254) ? len + 1 : 255);
 	}
 
-	chMtxUnlock(&print_mutex);
+	chBSemSignal(&print_mutex);
 }
 
 void commands_send_rotor_pos(float rotor_pos) {
@@ -678,28 +678,28 @@ void commands_set_app_data_handler(void(*func)(unsigned char *data, unsigned int
 
 void commands_send_app_data(unsigned char *data, unsigned int len) {
 	int32_t index = 0;
-	chMtxLock(&send_buffer_mutex);
+	chBSemWait(&send_buffer_mutex);
 	send_buffer_global[index++] = COMM_CUSTOM_APP_DATA;
 	memcpy(send_buffer_global + index, data, len);
 	index += len;
 	commands_send_packet(send_buffer_global, index);
-	chMtxUnlock(&send_buffer_mutex);
+	chBSemSignal(&send_buffer_mutex);
 }
 
 void commands_send_mcconf(COMM_PACKET_ID packet_id, mc_configuration *mcconf) {
-	chMtxLock(&send_buffer_mutex);
+	chBSemWait(&send_buffer_mutex);
 	send_buffer_global[0] = packet_id;
 	int32_t len = confgenerator_serialize_mcconf(send_buffer_global + 1, mcconf);
 	commands_send_packet(send_buffer_global, len + 1);
-	chMtxUnlock(&send_buffer_mutex);
+	chBSemSignal(&send_buffer_mutex);
 }
 
 void commands_send_appconf(COMM_PACKET_ID packet_id, app_configuration *appconf) {
-	chMtxLock(&send_buffer_mutex);
+	chBSemWait(&send_buffer_mutex);
 	send_buffer_global[0] = packet_id;
 	int32_t len = confgenerator_serialize_appconf(send_buffer_global + 1, appconf);
 	commands_send_packet(send_buffer_global, len + 1);
-	chMtxUnlock(&send_buffer_mutex);
+	chBSemSignal(&send_buffer_mutex);
 }
 
 void commands_apply_mcconf_hw_limits(mc_configuration *mcconf) {
@@ -755,7 +755,7 @@ void commands_apply_mcconf_hw_limits(mc_configuration *mcconf) {
 
 void commands_init_plot(char *namex, char *namey) {
 	int ind = 0;
-	chMtxLock(&send_buffer_mutex);
+	chBSemWait(&send_buffer_mutex);
 	send_buffer_global[ind++] = COMM_PLOT_INIT;
 	memcpy(send_buffer_global + ind, namex, strlen(namex));
 	ind += strlen(namex);
@@ -764,18 +764,18 @@ void commands_init_plot(char *namex, char *namey) {
 	ind += strlen(namey);
 	send_buffer_global[ind++] = '\0';
 	commands_send_packet(send_buffer_global, ind);
-	chMtxUnlock(&send_buffer_mutex);
+	chBSemSignal(&send_buffer_mutex);
 }
 
 void commands_plot_add_graph(char *name) {
 	int ind = 0;
-	chMtxLock(&send_buffer_mutex);
+	chBSemWait(&send_buffer_mutex);
 	send_buffer_global[ind++] = COMM_PLOT_ADD_GRAPH;
 	memcpy(send_buffer_global + ind, name, strlen(name));
 	ind += strlen(name);
 	send_buffer_global[ind++] = '\0';
 	commands_send_packet(send_buffer_global, ind);
-	chMtxUnlock(&send_buffer_mutex);
+	chBSemSignal(&send_buffer_mutex);
 }
 
 void commands_plot_set_graph(int graph) {
@@ -798,7 +798,7 @@ void commands_send_plot_points(float x, float y) {
 static THD_FUNCTION(blocking_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("comm_block");
+	//chRegSetThreadName("comm_block");
 
 	blocking_tp = chThdGetSelfX();
 
@@ -999,9 +999,9 @@ static THD_FUNCTION(blocking_thread, arg) {
 
 		case COMM_TERMINAL_CMD:
 			data[len] = '\0';
-			chMtxLock(&terminal_mutex);
+			chBSemWait(&terminal_mutex);
 			terminal_process_string((char*)data);
-			chMtxUnlock(&terminal_mutex);
+			chBSemSignal(&terminal_mutex);
 			break;
 
 		default:

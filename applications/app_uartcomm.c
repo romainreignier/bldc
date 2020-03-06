@@ -38,7 +38,8 @@ static THD_WORKING_AREA(packet_process_thread_wa, 512);
 // Variables
 static volatile bool thread_is_running = false;
 static volatile bool uart_is_running = false;
-static mutex_t send_mutex;
+//static mutex_t send_mutex;
+static binary_semaphore_t send_mutex;
 static bool send_mutex_init_done = false;
 
 #ifdef HW_UART_P_DEV
@@ -105,8 +106,8 @@ void app_uartcomm_start(void) {
 	packet_init(send_packet, process_packet, PACKET_HANDLER);
 
 	if (!thread_is_running) {
-		chThdCreateStatic(packet_process_thread_wa, sizeof(packet_process_thread_wa),
-				NORMALPRIO, packet_process_thread, NULL);
+		//chThdCreateStatic(packet_process_thread_wa, sizeof(packet_process_thread_wa),
+				//NORMALPRIO, packet_process_thread, NULL);
 		thread_is_running = true;
 	}
 
@@ -126,8 +127,8 @@ void app_uartcomm_start_permanent(void) {
 	packet_init(send_packet_p, process_packet_p, PACKET_HANDLER_P);
 
 	if (!thread_is_running) {
-		chThdCreateStatic(packet_process_thread_wa, sizeof(packet_process_thread_wa),
-				NORMALPRIO, packet_process_thread, NULL);
+		//chThdCreateStatic(packet_process_thread_wa, sizeof(packet_process_thread_wa),
+			//	NORMALPRIO, packet_process_thread, NULL);
 		thread_is_running = true;
 	}
 
@@ -161,13 +162,16 @@ void app_uartcomm_stop(void) {
 
 void app_uartcomm_send_packet(unsigned char *data, unsigned int len) {
 	if (!send_mutex_init_done) {
-		chMtxObjectInit(&send_mutex);
+		//chMtxObjectInit(&send_mutex);
+		chBSemObjectInit(&send_mutex, false);
 		send_mutex_init_done = true;
 	}
 
-	chMtxLock(&send_mutex);
+	//chMtxLock(&send_mutex);
+	chBSemWait(&send_mutex);
 	packet_send_packet(data, len, PACKET_HANDLER);
-	chMtxUnlock(&send_mutex);
+	//chMtxUnlock(&send_mutex);
+	chBSemSignal(&send_mutex);
 }
 
 void app_uartcomm_send_packet_p(unsigned char *data, unsigned int len) {
@@ -213,7 +217,7 @@ void app_uartcomm_configure(uint32_t baudrate, bool permanent_enabled) {
 static THD_FUNCTION(packet_process_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("uartcomm process");
+	//chRegSetThreadName("uartcomm process");
 
 	event_listener_t el;
 	chEvtRegisterMaskWithFlags(&HW_UART_DEV.event, &el, EVENT_MASK(0), CHN_INPUT_AVAILABLE);

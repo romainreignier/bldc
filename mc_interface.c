@@ -149,8 +149,8 @@ void mc_interface_init(mc_configuration *configuration) {
 	m_sample_mode_last = DEBUG_SAMPLING_OFF;
 
 	// Start threads
-	chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
-	chThdCreateStatic(sample_send_thread_wa, sizeof(sample_send_thread_wa), NORMALPRIO - 1, sample_send_thread, NULL);
+	//chThdCreateStatic(timer_thread_wa, sizeof(timer_thread_wa), NORMALPRIO, timer_thread, NULL);
+	//chThdCreateStatic(sample_send_thread_wa, sizeof(sample_send_thread_wa), NORMALPRIO - 1, sample_send_thread, NULL);
 
 #ifdef HW_HAS_DRV8301
 	drv8301_set_oc_mode(configuration->m_drv8301_oc_mode);
@@ -1825,7 +1825,7 @@ static void update_override_limits(volatile mc_configuration *conf) {
 static THD_FUNCTION(timer_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("mcif timer");
+	//chRegSetThreadName("mcif timer");
 
 	for(;;) {
 		// Decrease fault iterations
@@ -1905,7 +1905,7 @@ static THD_FUNCTION(timer_thread, arg) {
 static THD_FUNCTION(sample_send_thread, arg) {
 	(void)arg;
 
-	chRegSetThreadName("SampleSender");
+	//chRegSetThreadName("SampleSender");
 
 	sample_send_tp = chThdGetSelfX();
 
